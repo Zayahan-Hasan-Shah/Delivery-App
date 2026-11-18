@@ -1,0 +1,16 @@
+need to do major changes:
+1. remove client role and its related functionalities, screens,  all oof it, we don't need it any more
+2. we need to convert this into MVP 
+3. we need it for rider and customer(sender), now I'll call customer a sender.
+4. Now we will have an signup for for sender and rider.
+5. Same functionalites for sender
+6. as an riderin map we willl distinguish every oreder with different and unique colors.
+7. I think we have to use i10n for the localization, because we need app in both english and in urdu
+8. for rider signup we need full name, phone number, images of driving license and bike papers
+9. for sender we need full name, restaurant name, phone number, restaurant address.
+10. on start we have to ask for location permission, and if any one denied then let them pass through, force them to allow permission
+11. We want to show rider multiple oreders with different colors at the same time, the map should be real time. and below list of orders like we currently have, then on tap we will see the detail
+12. since its an delivery app so it should work in background as well, right?
+13. I've also made changes in architure in @architure.md file so now you have to follow the new architure
+14. add map in home screen for sender, make it feasible for end users, here it also see his all of his order on map differentiate by unique colors
+

@@ -1,5 +1,7 @@
-import 'package:material_ui/material_ui.dart';
-import 'package:delivery_app/features/orders/model/order_status.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:delivery_app/features/orders/domain/entities/order_status.dart';
+import 'package:delivery_app/l10n/app_localizations.dart';
 
 class StatusChip extends StatelessWidget {
   final OrderStatus status;
@@ -8,35 +10,23 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final color = status.color;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
       decoration: BoxDecoration(
-        color: color.withAlpha(31),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withAlpha(77), width: 1),
+        color: color.withAlpha(24),
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(color: color.withAlpha(75)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            status.displayName,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
+      child: Text(
+        status.localizedLabel(l10n),
+        style: TextStyle(
+          color: color,
+          fontSize: 11.sp,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

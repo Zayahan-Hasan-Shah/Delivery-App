@@ -5,13 +5,17 @@ import 'package:delivery_app/core/di/injection_container.dart';
 import 'package:delivery_app/main.dart';
 
 void main() {
-  testWidgets('App launches and renders splash screen smoke test', (WidgetTester tester) async {
-    AppConfig.initialize(Environment.development);
-    await initServiceLocator();
+  testWidgets(
+    'App launches and renders ShefsCloud Delivery splash screen',
+    (WidgetTester tester) async {
+      AppConfig.initialize(Environment.development);
+      await sl.reset();
+      await initServiceLocator();
 
-    await tester.pumpWidget(const DeliveryApp());
+      await tester.pumpWidget(const DeliveryApp());
+      await tester.pump();
 
-    // Verify splash branding is rendered
-    expect(find.text('LogiFlow Delivery'), findsOneWidget);
-  });
+      expect(find.text('ShefsCloud Delivery'), findsOneWidget);
+    },
+  );
 }

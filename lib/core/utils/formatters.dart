@@ -4,7 +4,8 @@ class Formatters {
   static final DateFormat _dateTimeFormat = DateFormat('MMM dd, yyyy • hh:mm a');
   static final DateFormat _timeFormat = DateFormat('hh:mm a');
   static final DateFormat _dateFormat = DateFormat('MMM dd, yyyy');
-  static final NumberFormat _currencyFormat = NumberFormat.currency(symbol: 'Rs. ', decimalDigits: 2);
+  static final NumberFormat _currencyFormat =
+      NumberFormat.currency(symbol: 'PKR ', decimalDigits: 0);
 
   static String formatDateTime(DateTime? dateTime) {
     if (dateTime == null) return 'N/A';

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Delivery App</string>
+	<string>ShefsCloud Delivery</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -27,9 +27,19 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app needs access to your location to set package pickup and drop-off points accurately.</string>
+	<string>ShefsCloud Delivery needs your location to set pickup and drop-off points and track active deliveries.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>This app needs access to your location to set package pickup and drop-off points accurately.</string>
+	<string>ShefsCloud Delivery needs continuous background location access so riders can broadcast live GPS while delivering orders in the background.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>ShefsCloud Delivery needs camera access to capture driving license, bike papers, and delivery proof photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ShefsCloud Delivery needs photo library access to upload driving license and bike papers documents.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

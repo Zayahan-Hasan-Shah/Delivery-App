@@ -1,7 +1,15 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:delivery_app/core/constant/app_constants.dart';
 import 'package:delivery_app/core/utils/app_logger.dart';
+
+enum LocationAccessStatus {
+  granted,
+  denied,
+  deniedForever,
+  gpsDisabled,
+}
 
 class UserLocation {
   final double latitude;
@@ -28,14 +36,23 @@ class UserLocation {
 }
 
 abstract class LocationService {
+  Future<LocationAccessStatus> checkLocationAccessStatus();
+  Future<LocationAccessStatus> requestMandatoryLocationAccess();
   Future<bool> checkPermission();
   Future<bool> requestPermission();
   Future<bool> isGpsEnabled();
+  Future<bool> openAppSettings();
+  Future<bool> openLocationSettings();
   Future<UserLocation?> getCurrentLocation();
   Stream<UserLocation> get locationStream;
-  Future<void> startTracking({int distanceFilterMeters, int intervalSeconds});
+  Future<void> startTracking({
+    int distanceFilterMeters = AppConstants.locationDistanceFilterMeters,
+    int intervalSeconds = AppConstants.locationUpdateIntervalSeconds,
+    bool enableBackgroundService = true,
+  });
   Future<void> stopTracking();
   bool get isTracking;
+  UserLocation? get lastKnownLocation;
 }
 
 class LocationServiceImpl implements LocationService {
@@ -43,12 +60,16 @@ class LocationServiceImpl implements LocationService {
   StreamSubscription<Position>? _positionStreamSubscription;
   Timer? _simulatedTimer;
   bool _isTracking = false;
+  UserLocation? _lastKnownLocation;
 
   @override
   Stream<UserLocation> get locationStream => _locationController.stream;
 
   @override
   bool get isTracking => _isTracking;
+
+  @override
+  UserLocation? get lastKnownLocation => _lastKnownLocation;
 
   @override
   Future<bool> isGpsEnabled() async {
@@ -61,35 +82,91 @@ class LocationServiceImpl implements LocationService {
   }
 
   @override
-  Future<bool> checkPermission() async {
+  Future<LocationAccessStatus> checkLocationAccessStatus() async {
     try {
+      final gpsEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!gpsEnabled) {
+        return LocationAccessStatus.gpsDisabled;
+      }
+
       final permission = await Geolocator.checkPermission();
-      return permission == LocationPermission.always || permission == LocationPermission.whileInUse;
+      if (permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse) {
+        return LocationAccessStatus.granted;
+      }
+      if (permission == LocationPermission.deniedForever) {
+        return LocationAccessStatus.deniedForever;
+      }
+      return LocationAccessStatus.denied;
     } catch (e) {
-      AppLogger.warning('Error checking location permission: $e', tag: 'LocationService');
+      AppLogger.warning('Error checking location access status: $e', tag: 'LocationService');
+      return LocationAccessStatus.denied;
+    }
+  }
+
+  @override
+  Future<LocationAccessStatus> requestMandatoryLocationAccess() async {
+    try {
+      final gpsEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!gpsEnabled) {
+        return LocationAccessStatus.gpsDisabled;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        AppLogger.info('Requesting mandatory location permission...', tag: 'LocationService');
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        return LocationAccessStatus.deniedForever;
+      }
+
+      if (permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse) {
+        return LocationAccessStatus.granted;
+      }
+
+      return LocationAccessStatus.denied;
+    } catch (e, st) {
+      AppLogger.error(
+        'Error requesting mandatory location permission',
+        error: e,
+        stackTrace: st,
+        tag: 'LocationService',
+      );
+      return LocationAccessStatus.denied;
+    }
+  }
+
+  @override
+  Future<bool> checkPermission() async {
+    final status = await checkLocationAccessStatus();
+    return status == LocationAccessStatus.granted;
+  }
+
+  @override
+  Future<bool> requestPermission() async {
+    final status = await requestMandatoryLocationAccess();
+    return status == LocationAccessStatus.granted;
+  }
+
+  @override
+  Future<bool> openAppSettings() async {
+    try {
+      return await Geolocator.openAppSettings();
+    } catch (e) {
+      AppLogger.warning('Failed to open app settings: $e', tag: 'LocationService');
       return false;
     }
   }
 
   @override
-  Future<bool> requestPermission() async {
+  Future<bool> openLocationSettings() async {
     try {
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        AppLogger.info('Requesting device location permission...', tag: 'LocationService');
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        AppLogger.warning('Location permissions are permanently denied by user.', tag: 'LocationService');
-        return false;
-      }
-
-      final granted = permission == LocationPermission.always || permission == LocationPermission.whileInUse;
-      AppLogger.info('Location permission result: $granted ($permission)', tag: 'LocationService');
-      return granted;
-    } catch (e, st) {
-      AppLogger.error('Failed to request location permission', error: e, stackTrace: st, tag: 'LocationService');
+      return await Geolocator.openLocationSettings();
+    } catch (e) {
+      AppLogger.warning('Failed to open location settings: $e', tag: 'LocationService');
       return false;
     }
   }
@@ -97,9 +174,9 @@ class LocationServiceImpl implements LocationService {
   @override
   Future<UserLocation?> getCurrentLocation() async {
     try {
-      final hasPermission = await requestPermission();
-      if (!hasPermission) {
-        AppLogger.warning('Cannot get current location: permission not granted', tag: 'LocationService');
+      final access = await requestMandatoryLocationAccess();
+      if (access != LocationAccessStatus.granted) {
+        AppLogger.warning('Cannot get current location: $access', tag: 'LocationService');
         return null;
       }
 
@@ -110,108 +187,180 @@ class LocationServiceImpl implements LocationService {
         ),
       );
 
-      AppLogger.info(
-        'Fetched current location: (${position.latitude}, ${position.longitude})',
-        tag: 'LocationService',
-      );
-
-      return UserLocation(
+      final loc = UserLocation(
         latitude: position.latitude,
         longitude: position.longitude,
         heading: position.heading,
         speed: position.speed,
         timestamp: position.timestamp,
       );
+      _lastKnownLocation = loc;
+      _locationController.add(loc);
+      return loc;
     } catch (e, st) {
       AppLogger.error(
-        'Unable to fetch real-time device location (GPS/Timeout), using fallback default coordinates',
+        'Unable to fetch GPS position, using safe fallback coordinates',
         error: e,
         stackTrace: st,
         tag: 'LocationService',
       );
-      // Return safe fallback center coordinates if device GPS fails/times out
-      return UserLocation(
+      final fallback = UserLocation(
         latitude: AppConstants.defaultLatitude,
         longitude: AppConstants.defaultLongitude,
-        timestamp: DateTime.now(),
+      );
+      _lastKnownLocation = fallback;
+      return fallback;
+    }
+  }
+
+  LocationSettings _buildLocationSettings({
+    required int distanceFilterMeters,
+    required int intervalSeconds,
+    required bool enableBackgroundService,
+  }) {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: distanceFilterMeters,
+        intervalDuration: Duration(seconds: intervalSeconds),
+        foregroundNotificationConfig: enableBackgroundService
+            ? const ForegroundNotificationConfig(
+                notificationTitle: 'ShefsCloud Delivery Active',
+                notificationText:
+                    'Live location tracking is running in the background for your deliveries.',
+                enableWakeLock: true,
+                setOngoing: true,
+              )
+            : null,
       );
     }
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      return AppleSettings(
+        accuracy: LocationAccuracy.high,
+        activityType: ActivityType.automotiveNavigation,
+        distanceFilter: distanceFilterMeters,
+        pauseLocationUpdatesAutomatically: false,
+        showBackgroundLocationIndicator: enableBackgroundService,
+        allowBackgroundLocationUpdates: enableBackgroundService,
+      );
+    }
+
+    return LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: distanceFilterMeters,
+    );
   }
 
   @override
   Future<void> startTracking({
     int distanceFilterMeters = AppConstants.locationDistanceFilterMeters,
     int intervalSeconds = AppConstants.locationUpdateIntervalSeconds,
+    bool enableBackgroundService = true,
   }) async {
     if (_isTracking) return;
-    _isTracking = true;
 
-    final hasPermission = await requestPermission();
-    if (hasPermission) {
-      try {
-        const locationSettings = LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: AppConstants.locationDistanceFilterMeters,
-        );
-
-        _positionStreamSubscription = Geolocator.getPositionStream(locationSettings: locationSettings).listen(
-          (position) {
-            _locationController.add(
-              UserLocation(
-                latitude: position.latitude,
-                longitude: position.longitude,
-                heading: position.heading,
-                speed: position.speed,
-                timestamp: position.timestamp,
-              ),
-            );
-          },
-          onError: (e) {
-            AppLogger.warning('Position stream error: $e. Falling back to simulation.', tag: 'LocationService');
-            _startFallbackTracking(intervalSeconds);
-          },
-        );
-        return;
-      } catch (e) {
-        AppLogger.warning('Position stream initialization failed: $e', tag: 'LocationService');
-      }
+    final hasPerm = await requestPermission();
+    if (!hasPerm) {
+      AppLogger.warning('Cannot start tracking: permission denied', tag: 'LocationService');
+      return;
     }
 
-    _startFallbackTracking(intervalSeconds);
+    _isTracking = true;
+    AppLogger.info(
+      'Started GPS tracking (background=$enableBackgroundService, filter=${distanceFilterMeters}m)',
+      tag: 'LocationService',
+    );
+
+    try {
+      final settings = _buildLocationSettings(
+        distanceFilterMeters: distanceFilterMeters,
+        intervalSeconds: intervalSeconds,
+        enableBackgroundService: enableBackgroundService,
+      );
+
+      _positionStreamSubscription = Geolocator.getPositionStream(
+        locationSettings: settings,
+      ).listen(
+        (Position pos) {
+          final loc = UserLocation(
+            latitude: pos.latitude,
+            longitude: pos.longitude,
+            heading: pos.heading,
+            speed: pos.speed,
+            timestamp: pos.timestamp,
+          );
+          _lastKnownLocation = loc;
+          _locationController.add(loc);
+        },
+        onError: (Object err) {
+          AppLogger.warning(
+            'GPS position stream error, switching to fallback stream: $err',
+            tag: 'LocationService',
+          );
+          _positionStreamSubscription = null;
+          _startFallbackStream(intervalSeconds);
+        },
+        onDone: () {
+          _positionStreamSubscription = null;
+        },
+        cancelOnError: true,
+      );
+    } catch (e) {
+      AppLogger.warning(
+        'Platform position stream unavailable, starting fallback simulation: $e',
+        tag: 'LocationService',
+      );
+      _positionStreamSubscription = null;
+      _startFallbackStream(intervalSeconds);
+    }
   }
 
-  void _startFallbackTracking(int intervalSeconds) {
+  void _startFallbackStream(int intervalSeconds) {
     _simulatedTimer?.cancel();
-    double currentLat = AppConstants.defaultLatitude;
-    double currentLng = AppConstants.defaultLongitude;
-
+    double lat = _lastKnownLocation?.latitude ?? AppConstants.defaultLatitude;
+    double lng = _lastKnownLocation?.longitude ?? AppConstants.defaultLongitude;
     _simulatedTimer = Timer.periodic(Duration(seconds: intervalSeconds), (_) {
-      currentLat += 0.0001;
-      currentLng += 0.0001;
-      _locationController.add(
-        UserLocation(
-          latitude: currentLat,
-          longitude: currentLng,
-          heading: 45.0,
-          speed: 25.0,
-          timestamp: DateTime.now(),
-        ),
+      lat += 0.00018;
+      lng += 0.00012;
+      final loc = UserLocation(
+        latitude: lat,
+        longitude: lng,
+        heading: 45.0,
+        speed: 28.0,
       );
+      _lastKnownLocation = loc;
+      _locationController.add(loc);
     });
   }
 
   @override
   Future<void> stopTracking() async {
-    await _positionStreamSubscription?.cancel();
+    final sub = _positionStreamSubscription;
     _positionStreamSubscription = null;
+    if (sub != null) {
+      try {
+        await sub.cancel();
+      } catch (e) {
+        AppLogger.warning(
+          'Ignoring benign GPS stream cancel error: $e',
+          tag: 'LocationService',
+        );
+      }
+    }
     _simulatedTimer?.cancel();
     _simulatedTimer = null;
     _isTracking = false;
-    AppLogger.info('Location tracking stopped', tag: 'LocationService');
+    AppLogger.info('Stopped GPS tracking', tag: 'LocationService');
   }
 
   void dispose() {
-    stopTracking();
+    final sub = _positionStreamSubscription;
+    _positionStreamSubscription = null;
+    if (sub != null) {
+      sub.cancel().catchError((_) {});
+    }
+    _simulatedTimer?.cancel();
     _locationController.close();
   }
 }

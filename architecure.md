@@ -11,14 +11,20 @@
     │   ├── di
     │   └── errors
     ├── features/
-    │   └── authentication/
+    │   ├── authentication
+    │   ├── data/
+    │   │   ├── repositories
+    │   │   ├── models
+    │   │   └── data_sources
+    │   ├── domain/
+    │   │   ├── entities
+    │   │   ├── usecases
+    │   │   └── repositories
+    │   └── presentation/
     │       ├── bloc/
     │       │   ├── state
     │       │   ├── event
     │       │   └── bloc
-    │       ├── model
-    │       ├── service
-    │       ├── state
     │       └── view/
     │           ├── screen
     │           └── widgets

@@ -1,4 +1,4 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:delivery_app/core/theme/app_colors.dart';
 
 class AppTextField extends StatelessWidget {
@@ -8,7 +8,7 @@ class AppTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final bool obscureText;
   final TextInputType keyboardType;
-  final Widget? prefixIcon;
+  final IconData? prefixIcon;
   final Widget? suffixIcon;
   final void Function(String)? onChanged;
   final int maxLines;
@@ -55,7 +55,9 @@ class AppTextField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(fontSize: 14, color: AppColors.textMuted),
-            prefixIcon: prefixIcon,
+            prefixIcon: prefixIcon != null
+                ? Icon(prefixIcon, size: 20, color: AppColors.textSecondary)
+                : null,
             suffixIcon: suffixIcon,
           ),
         ),

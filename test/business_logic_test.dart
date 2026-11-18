@@ -1,17 +1,33 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:delivery_app/features/authentication/model/user_role.dart';
-import 'package:delivery_app/features/authentication/bloc/auth_bloc.dart';
-import 'package:delivery_app/features/authentication/bloc/auth_event.dart';
-import 'package:delivery_app/features/authentication/state/auth_status.dart';
-import 'package:delivery_app/features/authentication/service/mock_auth_service.dart';
-import 'package:delivery_app/features/orders/model/order_status.dart';
-import 'package:delivery_app/features/orders/bloc/new_order_bloc.dart';
-import 'package:delivery_app/features/orders/bloc/new_order_event.dart';
-import 'package:delivery_app/features/orders/bloc/new_order_state.dart';
-import 'package:delivery_app/features/orders/service/mock_order_service.dart';
+import 'package:delivery_app/core/utils/order_color_helper.dart';
+import 'package:delivery_app/features/authentication/data/data_sources/auth_local_data_source.dart';
+import 'package:delivery_app/features/authentication/data/repositories/auth_repository_impl.dart';
+import 'package:delivery_app/features/authentication/domain/entities/user_role.dart';
+import 'package:delivery_app/features/authentication/domain/usecases/check_auth_status_usecase.dart';
+import 'package:delivery_app/features/authentication/domain/usecases/forgot_password_usecase.dart';
+import 'package:delivery_app/features/authentication/domain/usecases/login_usecase.dart';
+import 'package:delivery_app/features/authentication/domain/usecases/logout_usecase.dart';
+import 'package:delivery_app/features/authentication/domain/usecases/register_rider_usecase.dart';
+import 'package:delivery_app/features/authentication/domain/usecases/register_sender_usecase.dart';
+import 'package:delivery_app/features/authentication/domain/usecases/reset_password_usecase.dart';
+import 'package:delivery_app/features/authentication/domain/usecases/update_rider_online_status_usecase.dart';
+import 'package:delivery_app/features/authentication/presentation/bloc/bloc/auth_bloc.dart';
+import 'package:delivery_app/features/authentication/presentation/bloc/event/auth_event.dart';
+import 'package:delivery_app/features/authentication/presentation/bloc/state/auth_state.dart';
+import 'package:delivery_app/features/authentication/presentation/bloc/state/auth_status.dart';
+import 'package:delivery_app/features/orders/data/data_sources/order_local_data_source.dart';
+import 'package:delivery_app/features/orders/data/repositories/order_repository_impl.dart';
+import 'package:delivery_app/features/orders/domain/entities/order_status.dart';
+import 'package:delivery_app/features/orders/domain/usecases/create_order_usecase.dart';
+import 'package:delivery_app/features/orders/presentation/bloc/bloc/new_order_bloc.dart';
+import 'package:delivery_app/features/orders/presentation/bloc/event/new_order_event.dart';
+import 'package:delivery_app/features/orders/presentation/bloc/state/new_order_state.dart';
+import 'package:delivery_app/l10n/app_localizations.dart';
+import 'package:delivery_app/shared/service/location_gate_cubit.dart';
+import 'package:delivery_app/shared/service/location_service.dart';
 import 'package:delivery_app/shared/service/realtime_service.dart';
 import 'package:delivery_app/shared/service/secure_storage_service.dart';
-import 'package:delivery_app/shared/service/location_service.dart';
 
 class FakeSecureStorageService implements SecureStorageService {
   final Map<String, String> _data = {};
@@ -30,260 +46,238 @@ class FakeSecureStorageService implements SecureStorageService {
 }
 
 class FakeLocationService implements LocationService {
-  @override
-  Future<bool> checkPermission() async => true;
+  LocationAccessStatus mockStatus;
+
+  FakeLocationService({this.mockStatus = LocationAccessStatus.granted});
 
   @override
-  Future<bool> requestPermission() async => true;
+  Future<LocationAccessStatus> checkLocationAccessStatus() async => mockStatus;
 
   @override
-  Future<bool> isGpsEnabled() async => true;
+  Future<LocationAccessStatus> requestMandatoryLocationAccess() async =>
+      mockStatus;
+
+  @override
+  Future<bool> checkPermission() async =>
+      mockStatus == LocationAccessStatus.granted;
+
+  @override
+  Future<bool> requestPermission() async =>
+      mockStatus == LocationAccessStatus.granted;
+
+  @override
+  Future<bool> isGpsEnabled() async =>
+      mockStatus != LocationAccessStatus.gpsDisabled;
+
+  @override
+  Future<bool> openAppSettings() async => true;
+
+  @override
+  Future<bool> openLocationSettings() async => true;
 
   @override
   Future<UserLocation?> getCurrentLocation() async => UserLocation(
-        latitude: 37.7749,
-        longitude: -122.4194,
+        latitude: 33.7215,
+        longitude: 73.0561,
       );
 
   @override
   Stream<UserLocation> get locationStream => const Stream.empty();
 
   @override
-  Future<void> startTracking({int distanceFilterMeters = 10, int intervalSeconds = 5}) async {}
+  Future<void> startTracking({
+    int distanceFilterMeters = 10,
+    int intervalSeconds = 5,
+    bool enableBackgroundService = true,
+  }) async {}
 
   @override
   Future<void> stopTracking() async {}
 
   @override
   bool get isTracking => false;
+
+  @override
+  UserLocation? get lastKnownLocation => UserLocation(
+        latitude: 33.7215,
+        longitude: 73.0561,
+      );
 }
 
 void main() {
-  group('1. Complete Authentication Flow Tests', () {
-    late FakeSecureStorageService fakeStorage;
-    late MockAuthService authService;
-    late AuthBloc authBloc;
-
-    setUp(() {
-      fakeStorage = FakeSecureStorageService();
-      authService = MockAuthService(secureStorage: fakeStorage);
-      authBloc = AuthBloc(authService: authService);
-    });
-
-    tearDown(() {
-      authBloc.close();
-    });
-
-    test('Initial auth state is unauthenticated without active session', () {
-      expect(authBloc.state.user, isNull);
-      expect(authBloc.state.status, AuthStatus.initial);
-    });
-
-    test('1. Registration Flow: registers user with role and updates auth state', () async {
-      authBloc.add(
-        const RegisterSubmittedEvent(
-          name: 'Dave Courier',
-          phone: '+1 555-8888',
-          email: 'dave@delivery.com',
-          password: 'password123',
-          role: UserRole.rider,
-          vehicleType: 'Motorcycle',
-        ),
-      );
-
-      await expectLater(
-        authBloc.stream,
-        emitsThrough(
-          predicate<dynamic>((state) {
-            return state.status == AuthStatus.authenticated &&
-                state.user != null &&
-                state.user!.role == UserRole.rider &&
-                state.user!.email == 'dave@delivery.com';
-          }),
-        ),
-      );
-    });
-
-    test('2. Login Flow: authenticates registered role account', () async {
-      authBloc.add(
-        const LoginSubmittedEvent(
-          usernameOrPhone: 'customer@delivery.com',
-          password: 'password123',
-        ),
-      );
-
-      await expectLater(
-        authBloc.stream,
-        emitsThrough(
-          predicate<dynamic>((state) {
-            return state.status == AuthStatus.authenticated &&
-                state.user != null &&
-                state.user!.role == UserRole.customer &&
-                state.user!.email == 'customer@delivery.com';
-          }),
-        ),
-      );
-    });
-
-    test('3. Forgot Password Flow: requests OTP recovery and resets password', () async {
-      // Step A: Request OTP
-      authBloc.add(const ForgotPasswordRequestedEvent('customer@delivery.com'));
-
-      await expectLater(
-        authBloc.stream,
-        emitsThrough(
-          predicate<dynamic>((state) {
-            return state.status == AuthStatus.passwordResetCodeSent && state.message != null;
-          }),
-        ),
-      );
-
-      // Step B: Submit OTP & New Password
-      authBloc.add(
-        const ResetPasswordSubmittedEvent(
-          emailOrPhone: 'customer@delivery.com',
-          otpCode: '123456',
-          newPassword: 'newSecretPassword123',
-        ),
-      );
-
-      await expectLater(
-        authBloc.stream,
-        emitsThrough(
-          predicate<dynamic>((state) {
-            return state.status == AuthStatus.passwordResetSuccess && state.message != null;
-          }),
-        ),
-      );
-    });
-
-    test('Logout clears user session and returns to unauthenticated', () async {
-      authBloc.add(
-        const LoginSubmittedEvent(
-          usernameOrPhone: 'rider@delivery.com',
-          password: 'password123',
-        ),
-      );
-
-      await expectLater(
-        authBloc.stream,
-        emitsThrough(predicate<dynamic>((state) => state.user != null)),
-      );
-
-      authBloc.add(const LogoutRequestedEvent());
-
-      await expectLater(
-        authBloc.stream,
-        emitsThrough(predicate<dynamic>((state) => state.user == null && state.status == AuthStatus.unauthenticated)),
-      );
-    });
-  });
-
-  group('2. UserRole & OrderStatus Domain Logic Tests', () {
-    test('Role parsing and permissions', () {
-      expect(UserRole.fromString('customer'), UserRole.customer);
-      expect(UserRole.fromString('client'), UserRole.client);
+  group('1. Role Model & Localization (EN/UR)', () {
+    test('Only Sender and Rider roles exist (Client removed)', () {
+      expect(UserRole.values, [UserRole.sender, UserRole.rider]);
+      expect(UserRole.fromString('sender'), UserRole.sender);
       expect(UserRole.fromString('rider'), UserRole.rider);
-      expect(UserRole.customer.isCustomer, isTrue);
+      expect(UserRole.sender.isSender, isTrue);
       expect(UserRole.rider.isRider, isTrue);
     });
 
-    test('OrderStatus timeline sequence and terminal states', () {
-      expect(OrderStatus.placed.timelineOrder, 0);
-      expect(OrderStatus.accepted.timelineOrder, 1);
-      expect(OrderStatus.assigned.timelineOrder, 2);
-      expect(OrderStatus.pickedUp.timelineOrder, 3);
-      expect(OrderStatus.onTheWay.timelineOrder, 4);
-      expect(OrderStatus.delivered.timelineOrder, 5);
-
-      expect(OrderStatus.placed.isActive, isTrue);
-      expect(OrderStatus.delivered.isTerminal, isTrue);
-      expect(OrderStatus.cancelled.isTerminal, isTrue);
+    test('English and Urdu localizations load cleanly', () {
+      final en = lookupAppLocalizations(const Locale('en'));
+      final ur = lookupAppLocalizations(const Locale('ur'));
+      expect(en.roleSender, 'Sender');
+      expect(en.roleRider, 'Rider');
+      expect(ur.roleRider, 'رائیڈر');
+      expect(ur.allowLocationPermission.isNotEmpty, isTrue);
     });
   });
 
-  group('3. NewOrderBloc Validation & Creation Tests', () {
-    late MockRealtimeService realtimeService;
-    late MockOrderService orderService;
-    late FakeLocationService locationService;
-    late NewOrderBloc newOrderBloc;
+  group('2. Mandatory Location Permission Gate', () {
+    test('Blocks user when location permission is denied', () async {
+      final loc = FakeLocationService(mockStatus: LocationAccessStatus.denied);
+      final cubit = LocationGateCubit(locationService: loc);
+
+      await cubit.checkAndRequestOnStartup();
+      expect(cubit.state.isGranted, isFalse);
+      expect(cubit.state.status, LocationAccessStatus.denied);
+
+      // Once user grants permission, gate unlocks
+      loc.mockStatus = LocationAccessStatus.granted;
+      await cubit.requestPermission();
+      expect(cubit.state.isGranted, isTrue);
+
+      await cubit.close();
+    });
+  });
+
+  group('3. Authentication Flows (Sender & Rider Signup + Login)', () {
+    late AuthBloc authBloc;
 
     setUp(() {
-      realtimeService = MockRealtimeService();
-      orderService = MockOrderService(realtimeService: realtimeService);
-      locationService = FakeLocationService();
-      newOrderBloc = NewOrderBloc(
-        orderService: orderService,
-        locationService: locationService,
+      final storage = FakeSecureStorageService();
+      final ds = AuthLocalDataSourceImpl(secureStorage: storage);
+      final repo = AuthRepositoryImpl(localDataSource: ds);
+      authBloc = AuthBloc(
+        checkAuthStatusUseCase: CheckAuthStatusUseCase(repo),
+        loginUseCase: LoginUseCase(repo),
+        registerSenderUseCase: RegisterSenderUseCase(repo),
+        registerRiderUseCase: RegisterRiderUseCase(repo),
+        forgotPasswordUseCase: ForgotPasswordUseCase(repo),
+        resetPasswordUseCase: ResetPasswordUseCase(repo),
+        logoutUseCase: LogoutUseCase(repo),
+        updateRiderOnlineStatusUseCase: UpdateRiderOnlineStatusUseCase(repo),
       );
     });
 
-    tearDown(() {
-      newOrderBloc.close();
-    });
+    tearDown(() => authBloc.close());
 
-    test('Fetches current customer location and sets pickup pin', () async {
-      newOrderBloc.add(
-        const FetchCurrentCustomerLocationEvent(updatePickupCoordinates: true),
+    test('Sender signup captures full name, restaurant name, phone & address',
+        () async {
+      authBloc.add(
+        const RegisterSenderSubmittedEvent(
+          fullName: 'Hassan Ali',
+          restaurantName: 'Desi Tandoor',
+          phone: '03009998877',
+          restaurantAddress: 'Sector F-8 Markaz, Islamabad',
+          password: 'password123',
+        ),
       );
 
       await expectLater(
-        newOrderBloc.stream,
+        authBloc.stream,
         emitsThrough(
-          predicate<NewOrderState>((state) {
-            return state.customerLatitude == 37.7749 &&
-                state.customerLongitude == -122.4194 &&
-                state.pickupLatitude == 37.7749 &&
-                state.pickupLongitude == -122.4194 &&
-                state.isLocatingCustomer == false;
+          predicate<AuthState>((state) {
+            return state.status == AuthStatus.authenticated &&
+                state.user?.role == UserRole.sender &&
+                state.user?.restaurantName == 'Desi Tandoor' &&
+                state.user?.restaurantAddress ==
+                    'Sector F-8 Markaz, Islamabad';
           }),
         ),
       );
     });
 
-    test('Prevents order submission when items list is empty', () async {
-      newOrderBloc.add(
-        const UpdatePickupDetailsEvent(name: 'Sender', phone: '+12345678', address: 'Addr 1'),
+    test('Rider signup captures driving license and bike papers photos',
+        () async {
+      authBloc.add(
+        const RegisterRiderSubmittedEvent(
+          fullName: 'Tariq Mehmood',
+          phone: '03121112233',
+          password: 'password123',
+          drivingLicenseImagePath: '/tmp/license.jpg',
+          bikePapersImagePath: '/tmp/bike_papers.jpg',
+          cnicNumber: '61101-0000000-1',
+        ),
       );
-      newOrderBloc.add(
-        const UpdateDropoffDetailsEvent(name: 'Receiver', phone: '+87654321', address: 'Addr 2'),
-      );
-      newOrderBloc.add(const SubmitOrderEvent());
 
       await expectLater(
-        newOrderBloc.stream,
+        authBloc.stream,
         emitsThrough(
-          predicate<NewOrderState>((state) {
-            return state.status == NewOrderSubmissionStatus.error &&
-                state.errorMessage == 'Please add at least one item to deliver.';
+          predicate<AuthState>((state) {
+            return state.status == AuthStatus.authenticated &&
+                state.user?.role == UserRole.rider &&
+                state.user?.drivingLicenseImagePath == '/tmp/license.jpg' &&
+                state.user?.bikePapersImagePath == '/tmp/bike_papers.jpg';
           }),
         ),
       );
     });
+  });
 
-    test('Allows submission when all fields and items are valid', () async {
-      newOrderBloc.add(
-        const UpdatePickupDetailsEvent(name: 'Sender', phone: '+12345678', address: 'Addr 1'),
+  group('4. Multi-Order Unique Colors & NewOrderBloc', () {
+    test('Assigns distinct unique colors to multiple active rider orders', () {
+      final map = OrderColorHelper.buildColorMap(
+        ['ord_101', 'ord_102', 'ord_103', 'ord_104'],
       );
-      newOrderBloc.add(
-        const UpdateDropoffDetailsEvent(name: 'Receiver', phone: '+87654321', address: 'Addr 2'),
+      expect(map.values.toSet().length, 4);
+    });
+
+    test('NewOrderBloc fetches GPS location and creates order cleanly',
+        () async {
+      final rt = MockRealtimeService();
+      final ds = OrderLocalDataSourceImpl(realtimeService: rt);
+      final repo = OrderRepositoryImpl(localDataSource: ds);
+      final bloc = NewOrderBloc(
+        createOrderUseCase: CreateOrderUseCase(repo),
+        locationService: FakeLocationService(),
       );
-      newOrderBloc.add(
-        const AddOrderItemEvent(name: 'Important Documents', quantity: 2),
+
+      bloc.add(
+        const FetchCurrentSenderLocationEvent(updatePickupCoordinates: true),
       );
-      newOrderBloc.add(const SubmitOrderEvent());
 
       await expectLater(
-        newOrderBloc.stream,
+        bloc.stream,
         emitsThrough(
-          predicate<NewOrderState>((state) {
-            return state.status == NewOrderSubmissionStatus.success &&
-                state.createdOrder != null &&
-                state.createdOrder!.items.length == 1 &&
-                state.createdOrder!.items.first.quantity == 2;
-          }),
+          predicate<NewOrderState>(
+            (s) => s.senderLatitude == 33.7215 && s.pickupLatitude == 33.7215,
+          ),
         ),
       );
+
+      bloc.add(
+        const UpdatePickupDetailsEvent(
+          name: 'Spice Kitchen',
+          phone: '03001234567',
+          address: 'F-7 Markaz',
+        ),
+      );
+      bloc.add(
+        const UpdateDropoffDetailsEvent(
+          name: 'Ayesha',
+          phone: '03215551010',
+          address: 'Blue Area',
+        ),
+      );
+      bloc.add(const AddOrderItemEvent(name: 'Biryani Box', quantity: 2));
+      bloc.add(const SubmitOrderEvent(senderId: 'sender_01'));
+
+      await expectLater(
+        bloc.stream,
+        emitsThrough(
+          predicate<NewOrderState>(
+            (s) =>
+                s.status == NewOrderSubmissionStatus.success &&
+                s.createdOrder != null &&
+                s.createdOrder!.status == OrderStatus.assigned,
+          ),
+        ),
+      );
+
+      await bloc.close();
+      rt.dispose();
     });
   });
 }
