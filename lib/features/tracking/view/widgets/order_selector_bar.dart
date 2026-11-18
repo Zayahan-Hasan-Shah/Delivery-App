@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:delivery_app/features/orders/model/order_model.dart';
 import 'package:delivery_app/core/theme/app_colors.dart';
 
@@ -24,7 +24,7 @@ class OrderSelectorBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
         itemCount: orders.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final order = orders[index];
           final isSelected = order.id == selectedOrderId;

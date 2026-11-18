@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:delivery_app/core/configurations/app_config.dart';
 import 'package:delivery_app/core/configurations/environment.dart';
 import 'package:delivery_app/core/di/injection_container.dart';

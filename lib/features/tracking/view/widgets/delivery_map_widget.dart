@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:delivery_app/features/orders/model/order_model.dart';
@@ -164,7 +164,7 @@ class _DeliveryMapWidgetState extends State<DeliveryMapWidget> {
                 Polyline(
                   points: [
                     pickupPoint,
-                    if (riderPoint != null) riderPoint,
+                    ?riderPoint,
                     dropoffPoint,
                   ],
                   color: AppColors.primaryLight.withAlpha(178),
