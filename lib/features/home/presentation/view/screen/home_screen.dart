@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
@@ -249,18 +249,18 @@ class _HomeScreenState extends State<HomeScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  user.restaurantName?.isNotEmpty == true
-                                      ? user.restaurantName!
-                                      : user.name,
+                                  user.name,
                                   style: TextStyle(
                                     fontSize: 16.sp,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.textPrimary,
                                   ),
                                 ),
-                                if (user.restaurantAddress?.isNotEmpty == true)
+                                if (user.pickupAddress?.isNotEmpty == true ||
+                                    user.restaurantAddress?.isNotEmpty == true)
                                   Text(
-                                    user.restaurantAddress!,
+                                    user.pickupAddress ??
+                                        user.restaurantAddress!,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(

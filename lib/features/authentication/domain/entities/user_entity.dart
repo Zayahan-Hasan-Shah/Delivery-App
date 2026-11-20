@@ -9,9 +9,12 @@ class UserEntity extends Equatable {
   final UserRole role;
   final String? profileImageUrl;
 
-  // Sender-specific fields (Restaurant / Business info)
+  // Sender-specific fields (Pickup Address & coordinates)
   final String? restaurantName;
   final String? restaurantAddress;
+  final String? pickupAddress;
+  final double? latitude;
+  final double? longitude;
 
   // Rider-specific fields (KYC documents & online shift)
   final String? cnicNumber;
@@ -29,6 +32,9 @@ class UserEntity extends Equatable {
     this.profileImageUrl,
     this.restaurantName,
     this.restaurantAddress,
+    this.pickupAddress,
+    this.latitude,
+    this.longitude,
     this.cnicNumber,
     this.drivingLicenseImagePath,
     this.bikePapersImagePath,
@@ -45,6 +51,9 @@ class UserEntity extends Equatable {
     String? profileImageUrl,
     String? restaurantName,
     String? restaurantAddress,
+    String? pickupAddress,
+    double? latitude,
+    double? longitude,
     String? cnicNumber,
     String? drivingLicenseImagePath,
     String? bikePapersImagePath,
@@ -60,6 +69,9 @@ class UserEntity extends Equatable {
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       restaurantName: restaurantName ?? this.restaurantName,
       restaurantAddress: restaurantAddress ?? this.restaurantAddress,
+      pickupAddress: pickupAddress ?? this.pickupAddress,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       cnicNumber: cnicNumber ?? this.cnicNumber,
       drivingLicenseImagePath:
           drivingLicenseImagePath ?? this.drivingLicenseImagePath,
@@ -79,6 +91,9 @@ class UserEntity extends Equatable {
         profileImageUrl,
         restaurantName,
         restaurantAddress,
+        pickupAddress,
+        latitude,
+        longitude,
         cnicNumber,
         drivingLicenseImagePath,
         bikePapersImagePath,

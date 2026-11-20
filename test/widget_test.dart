@@ -6,7 +6,7 @@ import 'package:delivery_app/main.dart';
 
 void main() {
   testWidgets(
-    'App launches and renders ShefsCloud Delivery splash screen',
+    'App launches and renders Delivery App splash screen',
     (WidgetTester tester) async {
       AppConfig.initialize(Environment.development);
       await sl.reset();
@@ -15,7 +15,7 @@ void main() {
       await tester.pumpWidget(const DeliveryApp());
       await tester.pump();
 
-      expect(find.text('ShefsCloud Delivery'), findsOneWidget);
+      expect(find.text('Delivery App'), findsOneWidget);
     },
   );
 }

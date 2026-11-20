@@ -10,10 +10,10 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appName => 'ShefsCloud Delivery';
+  String get appName => 'Delivery App';
 
   @override
-  String get brandShort => 'ShefsCloud';
+  String get brandShort => 'Delivery App';
 
   @override
   String get englishLabel => 'EN';
@@ -32,7 +32,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get locationGateSubtitle =>
-      'ShefsCloud Delivery requires continuous access to your device location to pin pickup & drop-off points, assign nearby riders, and run live delivery tracking.';
+      'Delivery App requires continuous access to your device location to pin pickup & drop-off points, assign nearby riders, and run live delivery tracking.';
 
   @override
   String get locationGateMandatoryNote =>
@@ -43,7 +43,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get locationGpsDisabledSubtitle =>
-      'Please turn on device Location Services (GPS) to continue using ShefsCloud Delivery.';
+      'Please turn on device Location Services (GPS) to continue using Delivery App.';
 
   @override
   String get locationDeniedForeverSubtitle =>
@@ -106,7 +106,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get registerSubtitleSender =>
-      'Send parcels & restaurant orders and track them live.';
+      'Send parcels and packages and track them live.';
 
   @override
   String get registerTitleRider => 'Join as a rider';
@@ -131,16 +131,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get phoneNumberHint => '03XX XXXXXXX';
 
   @override
-  String get restaurantNameLabel => 'Restaurant / Business name';
+  String get restaurantNameLabel => 'Pickup Location Name';
 
   @override
-  String get restaurantNameHint => 'e.g. Spice Kitchen';
+  String get restaurantNameHint => 'e.g. Home, Office, Store';
 
   @override
-  String get restaurantAddressLabel => 'Restaurant / Pickup address';
+  String get restaurantAddressLabel => 'Pickup address';
 
   @override
-  String get restaurantAddressHint => 'Street, sector, landmark';
+  String get restaurantAddressHint => 'House/shop, street, sector, landmark';
 
   @override
   String get cnicNumberLabel => 'CNIC number (Optional)';
@@ -286,10 +286,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deliveriesToday => 'Deliveries today';
 
   @override
-  String get tabMapOrders => 'Active Map';
+  String get tabMapOrders => 'Live Map';
 
   @override
-  String get tabDeliveryLog => 'Log';
+  String get tabDeliveryLog => 'History';
 
   @override
   String get tabEarnings => 'Earnings';
@@ -319,7 +319,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dropoffInfo => 'Drop-off Information';
 
   @override
-  String get senderNameLabel => 'Sender / Restaurant Name';
+  String get senderNameLabel => 'Sender Name';
 
   @override
   String get senderPhoneLabel => 'Sender Phone';

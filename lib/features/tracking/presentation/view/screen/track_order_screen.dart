@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:delivery_app/core/theme/app_colors.dart';
@@ -128,50 +128,6 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
 
                 StatusTimelineWidget(currentStatus: order.status),
                 SizedBox(height: 16.h),
-
-                // Delivery OTP Code Card (Reference Design)
-                Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.w),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                l10n.yourDeliveryCode,
-                                style: TextStyle(
-                                  fontSize: 13.sp,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              SizedBox(height: 2.h),
-                              Text(
-                                l10n.tellOtpToRider,
-                                style: TextStyle(
-                                  fontSize: 12.sp,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          order.deliveryOtp,
-                          style: TextStyle(
-                            fontSize: 28.sp,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 5,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(height: 12.h),
 
                 // COD Card
                 Card(

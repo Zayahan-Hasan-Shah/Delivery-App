@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:delivery_app/core/theme/app_colors.dart';
 import 'package:delivery_app/features/tracking/domain/entities/tracking_data_entity.dart';
+import 'package:delivery_app/shared/widgets/app_tile_layer.dart';
 
 class DeliveryMapWidget extends StatelessWidget {
   final TrackingDataEntity trackingData;
@@ -25,7 +26,12 @@ class DeliveryMapWidget extends StatelessWidget {
             trackingData.riderLocation!.latitude,
             trackingData.riderLocation!.longitude,
           )
-        : pickup;
+        : LatLng(
+            pickup.latitude + (dropoff.latitude - pickup.latitude) * 0.45,
+            pickup.longitude + (dropoff.longitude - pickup.longitude) * 0.45,
+          );
+
+    final bounds = LatLngBounds.fromPoints([pickup, dropoff, rider]);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(18.r),
@@ -39,12 +45,15 @@ class DeliveryMapWidget extends StatelessWidget {
           options: MapOptions(
             initialCenter: rider,
             initialZoom: 13.5,
+            initialCameraFit: CameraFit.bounds(
+              bounds: bounds,
+              padding: EdgeInsets.all(28.w),
+              minZoom: 12.0,
+              maxZoom: 16.0,
+            ),
           ),
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.shefscloud.delivery',
-            ),
+            const AppTileLayer(),
             PolylineLayer(
               polylines: [
                 Polyline(

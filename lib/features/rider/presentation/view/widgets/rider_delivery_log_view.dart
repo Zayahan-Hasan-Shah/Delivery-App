@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:delivery_app/core/theme/app_colors.dart';
 import 'package:delivery_app/core/utils/formatters.dart';
@@ -100,14 +100,28 @@ class RiderDeliveryLogView extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  subtitle: Text(
-                    '${Formatters.formatTime(order.createdAt)} • ${order.dropoff.addressText}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: AppColors.textSecondary,
-                    ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${Formatters.formatTime(order.createdAt)} • ${order.dropoff.addressText}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      SizedBox(height: 2.h),
+                      Text(
+                        '${l10n.riderShare}: ${Formatters.formatCurrency(order.riderSharePkr)}',
+                        style: TextStyle(
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
                   ),
                   trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,

@@ -8,9 +8,10 @@ abstract class AuthRepository {
 
   Future<UserEntity> registerSender({
     required String fullName,
-    required String restaurantName,
     required String phone,
-    required String restaurantAddress,
+    required String pickupAddress,
+    double? pickupLatitude,
+    double? pickupLongitude,
     required String password,
   });
 

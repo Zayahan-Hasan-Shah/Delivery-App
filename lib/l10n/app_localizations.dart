@@ -101,13 +101,13 @@ abstract class AppLocalizations {
   /// No description provided for @appName.
   ///
   /// In en, this message translates to:
-  /// **'ShefsCloud Delivery'**
+  /// **'Delivery App'**
   String get appName;
 
   /// No description provided for @brandShort.
   ///
   /// In en, this message translates to:
-  /// **'ShefsCloud'**
+  /// **'Delivery App'**
   String get brandShort;
 
   /// No description provided for @englishLabel.
@@ -143,7 +143,7 @@ abstract class AppLocalizations {
   /// No description provided for @locationGateSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'ShefsCloud Delivery requires continuous access to your device location to pin pickup & drop-off points, assign nearby riders, and run live delivery tracking.'**
+  /// **'Delivery App requires continuous access to your device location to pin pickup & drop-off points, assign nearby riders, and run live delivery tracking.'**
   String get locationGateSubtitle;
 
   /// No description provided for @locationGateMandatoryNote.
@@ -161,7 +161,7 @@ abstract class AppLocalizations {
   /// No description provided for @locationGpsDisabledSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Please turn on device Location Services (GPS) to continue using ShefsCloud Delivery.'**
+  /// **'Please turn on device Location Services (GPS) to continue using Delivery App.'**
   String get locationGpsDisabledSubtitle;
 
   /// No description provided for @locationDeniedForeverSubtitle.
@@ -281,7 +281,7 @@ abstract class AppLocalizations {
   /// No description provided for @registerSubtitleSender.
   ///
   /// In en, this message translates to:
-  /// **'Send parcels & restaurant orders and track them live.'**
+  /// **'Send parcels and packages and track them live.'**
   String get registerSubtitleSender;
 
   /// No description provided for @registerTitleRider.
@@ -329,25 +329,25 @@ abstract class AppLocalizations {
   /// No description provided for @restaurantNameLabel.
   ///
   /// In en, this message translates to:
-  /// **'Restaurant / Business name'**
+  /// **'Pickup Location Name'**
   String get restaurantNameLabel;
 
   /// No description provided for @restaurantNameHint.
   ///
   /// In en, this message translates to:
-  /// **'e.g. Spice Kitchen'**
+  /// **'e.g. Home, Office, Store'**
   String get restaurantNameHint;
 
   /// No description provided for @restaurantAddressLabel.
   ///
   /// In en, this message translates to:
-  /// **'Restaurant / Pickup address'**
+  /// **'Pickup address'**
   String get restaurantAddressLabel;
 
   /// No description provided for @restaurantAddressHint.
   ///
   /// In en, this message translates to:
-  /// **'Street, sector, landmark'**
+  /// **'House/shop, street, sector, landmark'**
   String get restaurantAddressHint;
 
   /// No description provided for @cnicNumberLabel.
@@ -617,13 +617,13 @@ abstract class AppLocalizations {
   /// No description provided for @tabMapOrders.
   ///
   /// In en, this message translates to:
-  /// **'Active Map'**
+  /// **'Live Map'**
   String get tabMapOrders;
 
   /// No description provided for @tabDeliveryLog.
   ///
   /// In en, this message translates to:
-  /// **'Log'**
+  /// **'History'**
   String get tabDeliveryLog;
 
   /// No description provided for @tabEarnings.
@@ -683,7 +683,7 @@ abstract class AppLocalizations {
   /// No description provided for @senderNameLabel.
   ///
   /// In en, this message translates to:
-  /// **'Sender / Restaurant Name'**
+  /// **'Sender Name'**
   String get senderNameLabel;
 
   /// No description provided for @senderPhoneLabel.

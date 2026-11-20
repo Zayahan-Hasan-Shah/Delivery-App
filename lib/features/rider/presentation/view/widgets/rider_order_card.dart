@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:delivery_app/core/theme/app_colors.dart';
 import 'package:delivery_app/core/utils/formatters.dart';
@@ -167,23 +167,49 @@ class RiderOrderCard extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'COD ${Formatters.formatCurrency(order.codAmountPkr)}',
-                            style: TextStyle(
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          Row(
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${l10n.riderShare}: ${Formatters.formatCurrency(order.riderSharePkr)}',
+                                'COD',
                                 style: TextStyle(
-                                  fontSize: 13.sp,
+                                  fontSize: 10.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                              Text(
+                                Formatters.formatCurrency(order.codAmountPkr),
+                                style: TextStyle(
+                                  fontSize: 14.sp,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.textPrimary,
                                 ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    l10n.riderShare,
+                                    style: TextStyle(
+                                      fontSize: 10.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                                  Text(
+                                    Formatters.formatCurrency(order.riderSharePkr),
+                                    style: TextStyle(
+                                      fontSize: 14.sp,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
                               ),
                               SizedBox(width: 4.w),
                               Icon(

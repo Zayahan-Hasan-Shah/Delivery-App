@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:latlong2/latlong.dart';
@@ -14,6 +14,7 @@ import 'package:delivery_app/l10n/app_localizations.dart';
 import 'package:delivery_app/shared/service/background_delivery_service.dart';
 import 'package:delivery_app/shared/service/location_service.dart';
 import 'package:delivery_app/shared/service/route_navigation_service.dart';
+import 'package:delivery_app/shared/widgets/app_tile_layer.dart';
 
 class InAppNavigationScreen extends StatefulWidget {
   final OrderEntity order;
@@ -33,6 +34,7 @@ class InAppNavigationScreen extends StatefulWidget {
 
 class _InAppNavigationScreenState extends State<InAppNavigationScreen> {
   late final MapController _mapController;
+  bool _isMapReady = false;
   late bool _isTargetingPickup;
   StreamSubscription<UserLocation>? _locationSub;
 
@@ -87,8 +89,10 @@ class _InAppNavigationScreenState extends State<InAppNavigationScreen> {
       // Only update marker to device GPS if within 100 km of the delivery city
       if (_approxDistanceKm(livePt, _targetLatLng) < 100.0) {
         setState(() => _riderLatLng = livePt);
-        if (_followRider) {
-          _mapController.move(livePt, _mapController.camera.zoom);
+        if (_followRider && _isMapReady) {
+          try {
+            _mapController.move(livePt, _mapController.camera.zoom);
+          } catch (_) {}
         }
       }
     });
@@ -130,25 +134,30 @@ class _InAppNavigationScreenState extends State<InAppNavigationScreen> {
       _isLoadingRoute = false;
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _fitFullRoute();
-    });
+    if (_isMapReady) {
+      _fitFullRoute();
+    }
   }
 
   void _fitFullRoute() {
-    final points = <LatLng>[
-      if (_riderLatLng != null) _riderLatLng!,
-      _targetLatLng,
-      ...?_route?.polylinePoints,
-    ];
-    if (points.length >= 2) {
-      final bounds = LatLngBounds.fromPoints(points);
-      _mapController.fitCamera(
-        CameraFit.bounds(
-          bounds: bounds,
-          padding: EdgeInsets.fromLTRB(44.w, 150.h, 44.w, 220.h),
-        ),
-      );
+    if (!_isMapReady) return;
+    try {
+      final points = <LatLng>[
+        ?_riderLatLng,
+        _targetLatLng,
+        ...?_route?.polylinePoints,
+      ];
+      if (points.length >= 2) {
+        final bounds = LatLngBounds.fromPoints(points);
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: bounds,
+            padding: EdgeInsets.fromLTRB(44.w, 150.h, 44.w, 220.h),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[InAppNavigationScreen] _fitFullRoute error: $e');
     }
   }
 
@@ -206,7 +215,7 @@ class _InAppNavigationScreenState extends State<InAppNavigationScreen> {
         ? _route!.steps.first
         : null;
     final routePoints = _route?.polylinePoints ??
-        [if (_riderLatLng != null) _riderLatLng!, _targetLatLng];
+        [?_riderLatLng, _targetLatLng];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -218,6 +227,10 @@ class _InAppNavigationScreenState extends State<InAppNavigationScreen> {
             options: MapOptions(
               initialCenter: _riderLatLng ?? _targetLatLng,
               initialZoom: 14.5,
+              onMapReady: () {
+                _isMapReady = true;
+                _fitFullRoute();
+              },
               onPositionChanged: (_, hasGesture) {
                 if (hasGesture && _followRider) {
                   setState(() => _followRider = false);
@@ -225,10 +238,7 @@ class _InAppNavigationScreenState extends State<InAppNavigationScreen> {
               },
             ),
             children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.shefscloud.delivery',
-              ),
+              const AppTileLayer(),
               if (routePoints.length >= 2)
                 PolylineLayer(
                   polylines: [
@@ -516,8 +526,10 @@ class _InAppNavigationScreenState extends State<InAppNavigationScreen> {
                   color: _followRider ? _accentColor : AppColors.charcoal,
                   onTap: () {
                     setState(() => _followRider = true);
-                    if (_riderLatLng != null) {
-                      _mapController.move(_riderLatLng!, 15.8);
+                    if (_riderLatLng != null && _isMapReady) {
+                      try {
+                        _mapController.move(_riderLatLng!, 15.8);
+                      } catch (_) {}
                     }
                   },
                 ),

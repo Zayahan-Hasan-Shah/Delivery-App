@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:delivery_app/core/constant/app_constants.dart';
 import 'package:delivery_app/core/di/injection_container.dart';
 import 'package:delivery_app/core/theme/app_colors.dart';
 import 'package:delivery_app/core/utils/input_validators.dart';
@@ -11,12 +12,13 @@ import 'package:delivery_app/features/authentication/presentation/bloc/event/aut
 import 'package:delivery_app/features/authentication/presentation/bloc/state/auth_state.dart';
 import 'package:delivery_app/features/authentication/presentation/bloc/state/auth_status.dart';
 import 'package:delivery_app/features/authentication/presentation/view/widgets/document_upload_tile.dart';
+import 'package:delivery_app/features/orders/presentation/view/widgets/location_picker_map.dart';
 import 'package:delivery_app/l10n/app_localizations.dart';
 import 'package:delivery_app/shared/routing/route_names.dart';
 import 'package:delivery_app/shared/service/document_picker_service.dart';
+import 'package:delivery_app/shared/service/location_service.dart';
 import 'package:delivery_app/shared/widgets/app_button.dart';
 import 'package:delivery_app/shared/widgets/app_text_field.dart';
-import 'package:delivery_app/shared/widgets/language_toggle_pill.dart';
 
 class RegisterScreen extends StatefulWidget {
   final UserRole initialRole;
@@ -33,9 +35,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // Sender-specific fields
-  final _restaurantNameController = TextEditingController();
-  final _restaurantAddressController = TextEditingController();
+  // Sender-specific fields (Pickup Address & Map Location)
+  final _pickupAddressController = TextEditingController();
+  double _pickupLatitude = AppConstants.defaultLatitude;
+  double _pickupLongitude = AppConstants.defaultLongitude;
+  bool _isLocatingPickup = false;
 
   // Rider-specific fields
   final _cnicController = TextEditingController();
@@ -49,6 +53,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void initState() {
     super.initState();
     _selectedRole = widget.initialRole;
+    _initSenderLocation();
+  }
+
+  void _initSenderLocation() {
+    sl<LocationService>().getCurrentLocation().then((pos) {
+      if (mounted && pos != null) {
+        setState(() {
+          _pickupLatitude = pos.latitude;
+          _pickupLongitude = pos.longitude;
+        });
+      }
+    }).catchError((_) {});
   }
 
   @override
@@ -56,8 +72,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _fullNameController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
-    _restaurantNameController.dispose();
-    _restaurantAddressController.dispose();
+    _pickupAddressController.dispose();
     _cnicController.dispose();
     super.dispose();
   }
@@ -172,9 +187,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       context.read<AuthBloc>().add(
             RegisterSenderSubmittedEvent(
               fullName: _fullNameController.text.trim(),
-              restaurantName: _restaurantNameController.text.trim(),
               phone: _phoneController.text.trim(),
-              restaurantAddress: _restaurantAddressController.text.trim(),
+              pickupAddress: _pickupAddressController.text.trim(),
+              pickupLatitude: _pickupLatitude,
+              pickupLongitude: _pickupLongitude,
               password: _passwordController.text,
             ),
           );
@@ -262,7 +278,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ],
                         ),
-                        const LanguageTogglePill(),
                       ],
                     ),
                     SizedBox(height: 20.h),
@@ -338,21 +353,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     SizedBox(height: 14.h),
 
-                    // Sender-Specific: Restaurant Name
-                    if (!isRider) ...[
-                      AppTextField(
-                        controller: _restaurantNameController,
-                        label: l10n.restaurantNameLabel,
-                        hint: l10n.restaurantNameHint,
-                        prefixIcon: Icons.restaurant_rounded,
-                        validator: (v) => InputValidators.validateRequired(
-                          v,
-                          l10n.restaurantNameLabel,
-                        ),
-                      ),
-                      SizedBox(height: 14.h),
-                    ],
-
                     // Phone Number (Both Sender & Rider)
                     AppTextField(
                       controller: _phoneController,
@@ -364,17 +364,79 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     SizedBox(height: 14.h),
 
-                    // Sender-Specific: Restaurant Address
+                    // Sender-Specific: Pickup Address Text Field + Pin Map
                     if (!isRider) ...[
                       AppTextField(
-                        controller: _restaurantAddressController,
-                        label: l10n.restaurantAddressLabel,
+                        controller: _pickupAddressController,
+                        label: l10n.pickupAddressLabel,
                         hint: l10n.restaurantAddressHint,
                         prefixIcon: Icons.location_on_outlined,
                         maxLines: 2,
                         validator: (v) => InputValidators.validateRequired(
                           v,
-                          l10n.restaurantAddressLabel,
+                          l10n.pickupAddressLabel,
+                        ),
+                      ),
+                      SizedBox(height: 10.h),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.pin_drop_outlined,
+                            size: 16.sp,
+                            color: AppColors.primary,
+                          ),
+                          SizedBox(width: 6.w),
+                          Text(
+                            'Pin Pickup Location on Map',
+                            style: TextStyle(
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 6.h),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(14.r),
+                        child: Container(
+                          height: 180.h,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: AppColors.cardBorder,
+                              width: 1.2,
+                            ),
+                            borderRadius: BorderRadius.circular(14.r),
+                          ),
+                          child: LocationPickerMap(
+                            latitude: _pickupLatitude,
+                            longitude: _pickupLongitude,
+                            isLocating: _isLocatingPickup,
+                            isPickup: true,
+                            onLocationChanged: (lat, lng) {
+                              setState(() {
+                                _pickupLatitude = lat;
+                                _pickupLongitude = lng;
+                              });
+                            },
+                            onGpsPressed: () async {
+                              setState(() => _isLocatingPickup = true);
+                              try {
+                                final pos = await sl<LocationService>()
+                                    .getCurrentLocation();
+                                if (pos != null && mounted) {
+                                  setState(() {
+                                    _pickupLatitude = pos.latitude;
+                                    _pickupLongitude = pos.longitude;
+                                  });
+                                }
+                              } finally {
+                                if (mounted) {
+                                  setState(() => _isLocatingPickup = false);
+                                }
+                              }
+                            },
+                          ),
                         ),
                       ),
                       SizedBox(height: 14.h),

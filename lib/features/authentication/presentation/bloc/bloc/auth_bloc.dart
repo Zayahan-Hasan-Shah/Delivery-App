@@ -101,9 +101,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final user = await registerSenderUseCase(
         fullName: event.fullName,
-        restaurantName: event.restaurantName,
         phone: event.phone,
-        restaurantAddress: event.restaurantAddress,
+        pickupAddress: event.pickupAddress,
+        pickupLatitude: event.pickupLatitude,
+        pickupLongitude: event.pickupLongitude,
         password: event.password,
       );
       emit(state.copyWith(status: AuthStatus.authenticated, user: user));

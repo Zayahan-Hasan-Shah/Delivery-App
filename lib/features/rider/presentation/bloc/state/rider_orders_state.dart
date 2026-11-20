@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:delivery_app/core/constant/app_constants.dart';
 import 'package:delivery_app/features/orders/domain/entities/order_entity.dart';
 import 'package:delivery_app/features/rider/domain/entities/earnings_entity.dart';

@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:delivery_app/core/theme/app_colors.dart';
 import 'package:delivery_app/l10n/app_localizations.dart';
+import 'package:delivery_app/shared/widgets/app_tile_layer.dart';
 
 class LocationPickerMap extends StatefulWidget {
   final double latitude;
@@ -34,6 +35,7 @@ class LocationPickerMap extends StatefulWidget {
 class _LocationPickerMapState extends State<LocationPickerMap> {
   late final MapController _mapController;
   late LatLng _currentPosition;
+  bool _isMapReady = false;
 
   @override
   void initState() {
@@ -48,12 +50,20 @@ class _LocationPickerMapState extends State<LocationPickerMap> {
     if (oldWidget.latitude != widget.latitude ||
         oldWidget.longitude != widget.longitude) {
       _currentPosition = LatLng(widget.latitude, widget.longitude);
-      _mapController.move(_currentPosition, _mapController.camera.zoom);
+      if (_isMapReady) {
+        try {
+          _mapController.move(_currentPosition, _mapController.camera.zoom);
+        } catch (_) {}
+      }
     } else if (oldWidget.senderLatitude != widget.senderLatitude &&
         widget.senderLatitude != null &&
         widget.isPickup) {
       _currentPosition = LatLng(widget.senderLatitude!, widget.senderLongitude!);
-      _mapController.move(_currentPosition, 15.5);
+      if (_isMapReady) {
+        try {
+          _mapController.move(_currentPosition, 15.5);
+        } catch (_) {}
+      }
     }
   }
 
@@ -160,16 +170,16 @@ class _LocationPickerMapState extends State<LocationPickerMap> {
           options: MapOptions(
             initialCenter: senderLatLng ?? _currentPosition,
             initialZoom: 15.0,
+            onMapReady: () {
+              _isMapReady = true;
+            },
             onTap: (tapPosition, point) {
               setState(() => _currentPosition = point);
               widget.onLocationChanged(point.latitude, point.longitude);
             },
           ),
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.shefscloud.delivery',
-            ),
+            const AppTileLayer(),
             MarkerLayer(markers: markers),
           ],
         ),
@@ -288,7 +298,13 @@ class _LocationPickerMapState extends State<LocationPickerMap> {
             heroTag: 'picker_recenter_${widget.isPickup}',
             backgroundColor: Colors.white,
             foregroundColor: AppColors.charcoal,
-            onPressed: () => _mapController.move(_currentPosition, 15.5),
+            onPressed: () {
+              if (_isMapReady) {
+                try {
+                  _mapController.move(_currentPosition, 15.5);
+                } catch (_) {}
+              }
+            },
             child: Icon(Icons.center_focus_strong, size: 19.sp),
           ),
         ),

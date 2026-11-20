@@ -10,10 +10,10 @@ class AppLocalizationsUr extends AppLocalizations {
   AppLocalizationsUr([String locale = 'ur']) : super(locale);
 
   @override
-  String get appName => 'شیفس کلاؤڈ ڈیلیوری';
+  String get appName => 'ڈیلیوری ایپ';
 
   @override
-  String get brandShort => 'شیفس کلاؤڈ';
+  String get brandShort => 'ڈیلیوری ایپ';
 
   @override
   String get englishLabel => 'EN';
@@ -32,7 +32,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get locationGateSubtitle =>
-      'شیفس کلاؤڈ ڈیلیوری کو پک اپ اور ڈراپ آف پوائنٹس، قریبی رائیڈر تفویض کرنے اور لائیو ٹریکنگ کے لیے آپ کی لوکیشن تک رسائی درکار ہے۔';
+      'ڈیلیوری ایپ کو پک اپ اور ڈراپ آف پوائنٹس، قریبی رائیڈر تفویض کرنے اور لائیو ٹریکنگ کے لیے آپ کی لوکیشن تک رسائی درکار ہے۔';
 
   @override
   String get locationGateMandatoryNote =>
@@ -43,7 +43,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get locationGpsDisabledSubtitle =>
-      'شیفس کلاؤڈ ڈیلیوری استعمال کرنے کے لیے براہ کرم اپنے فون کی لوکیشن سروس (GPS) آن کریں۔';
+      'ڈیلیوری ایپ استعمال کرنے کے لیے براہ کرم اپنے فون کی لوکیشن سروس (GPS) آن کریں۔';
 
   @override
   String get locationDeniedForeverSubtitle =>
@@ -105,7 +105,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get registerSubtitleSender =>
-      'پارسل اور ریسٹورنٹ آرڈرز بھیجیں اور لائیو ٹریک کریں۔';
+      'پارسل اور پیکجز بھیجیں اور لائیو ٹریک کریں۔';
 
   @override
   String get registerTitleRider => 'بطور رائیڈر شامل ہوں';
@@ -130,13 +130,13 @@ class AppLocalizationsUr extends AppLocalizations {
   String get phoneNumberHint => '03XX XXXXXXX';
 
   @override
-  String get restaurantNameLabel => 'ریسٹورنٹ / کاروبار کا نام';
+  String get restaurantNameLabel => 'پک اپ کا نام';
 
   @override
-  String get restaurantNameHint => 'مثلاً سپائس کچن';
+  String get restaurantNameHint => 'مثلاً گھر، دفتر، دکان';
 
   @override
-  String get restaurantAddressLabel => 'ریسٹورنٹ / پک اپ کا پتہ';
+  String get restaurantAddressLabel => 'پک اپ کا پتہ';
 
   @override
   String get restaurantAddressHint => 'گلی، سیکٹر، مشہور جگہ';
@@ -285,10 +285,10 @@ class AppLocalizationsUr extends AppLocalizations {
   String get deliveriesToday => 'آج کی ڈیلیوریز';
 
   @override
-  String get tabMapOrders => 'فعال نقشہ';
+  String get tabMapOrders => 'لائیو نقشہ';
 
   @override
-  String get tabDeliveryLog => 'ریکارڈ';
+  String get tabDeliveryLog => 'ہسٹری';
 
   @override
   String get tabEarnings => 'کمائی';
@@ -318,7 +318,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get dropoffInfo => 'ڈراپ آف کی معلومات';
 
   @override
-  String get senderNameLabel => 'بھیجنے والا / ریسٹورنٹ کا نام';
+  String get senderNameLabel => 'بھیجنے والے کا نام';
 
   @override
   String get senderPhoneLabel => 'بھیجنے والے کا فون';

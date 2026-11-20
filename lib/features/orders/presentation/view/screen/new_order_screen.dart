@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
@@ -56,12 +56,11 @@ class _NewOrderScreenState extends State<NewOrderScreen>
     context.read<NewOrderBloc>().add(const ResetNewOrderEvent());
 
     _pickupNameController.text =
-        (user?.restaurantName?.isNotEmpty == true)
-            ? user!.restaurantName!
-            : (user?.name ?? 'Spice Cloud Kitchen');
+        (user?.name.isNotEmpty == true) ? user!.name : 'Sender';
     _pickupPhoneController.text = user?.phone ?? '03001234567';
-    _pickupAddressController.text =
-        user?.restaurantAddress ?? 'Plot 14, F-7 Markaz, Islamabad';
+    _pickupAddressController.text = user?.pickupAddress ??
+        user?.restaurantAddress ??
+        'Plot 14, F-7 Markaz, Islamabad';
 
     _dropoffNameController.text = '';
     _dropoffPhoneController.text = '';

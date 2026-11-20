@@ -8,16 +8,18 @@ class RegisterSenderUseCase {
 
   Future<UserEntity> call({
     required String fullName,
-    required String restaurantName,
     required String phone,
-    required String restaurantAddress,
+    required String pickupAddress,
+    double? pickupLatitude,
+    double? pickupLongitude,
     required String password,
   }) {
     return repository.registerSender(
       fullName: fullName,
-      restaurantName: restaurantName,
       phone: phone,
-      restaurantAddress: restaurantAddress,
+      pickupAddress: pickupAddress,
+      pickupLatitude: pickupLatitude,
+      pickupLongitude: pickupLongitude,
       password: password,
     );
   }

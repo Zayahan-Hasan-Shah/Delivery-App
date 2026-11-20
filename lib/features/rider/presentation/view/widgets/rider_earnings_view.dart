@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:delivery_app/core/theme/app_colors.dart';
 import 'package:delivery_app/core/utils/formatters.dart';
@@ -148,7 +148,7 @@ class _RiderEarningsViewState extends State<RiderEarningsView> {
                   ),
                 ),
                 subtitle: Text(
-                  '${Formatters.formatDate(o.updatedAt)} • ${l10n.deliveryFee}: ${Formatters.formatCurrency(o.deliveryFeePkr)}',
+                  '${Formatters.formatDate(o.updatedAt)} • COD: ${Formatters.formatCurrency(o.codAmountPkr)}',
                   style: TextStyle(
                     fontSize: 12.sp,
                     color: AppColors.textSecondary,

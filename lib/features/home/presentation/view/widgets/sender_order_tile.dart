@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:delivery_app/core/theme/app_colors.dart';
 import 'package:delivery_app/core/utils/formatters.dart';
@@ -133,7 +133,7 @@ class SenderOrderTile extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'COD ${Formatters.formatCurrency(order.codAmountPkr)} • OTP ${order.deliveryOtp}',
+                            'Fee: ${Formatters.formatCurrency(order.deliveryFeePkr)} • COD ${Formatters.formatCurrency(order.codAmountPkr)}',
                             style: TextStyle(
                               fontSize: 12.sp,
                               fontWeight: FontWeight.w600,

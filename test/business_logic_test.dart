@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:delivery_app/core/utils/order_color_helper.dart';
 import 'package:delivery_app/features/authentication/data/data_sources/auth_local_data_source.dart';
@@ -163,14 +163,15 @@ void main() {
 
     tearDown(() => authBloc.close());
 
-    test('Sender signup captures full name, restaurant name, phone & address',
+    test('Sender signup captures full name, phone & pickup address with map location',
         () async {
       authBloc.add(
         const RegisterSenderSubmittedEvent(
           fullName: 'Hassan Ali',
-          restaurantName: 'Desi Tandoor',
           phone: '03009998877',
-          restaurantAddress: 'Sector F-8 Markaz, Islamabad',
+          pickupAddress: 'Sector F-8 Markaz, Islamabad',
+          pickupLatitude: 33.7215,
+          pickupLongitude: 73.0560,
           password: 'password123',
         ),
       );
@@ -181,9 +182,8 @@ void main() {
           predicate<AuthState>((state) {
             return state.status == AuthStatus.authenticated &&
                 state.user?.role == UserRole.sender &&
-                state.user?.restaurantName == 'Desi Tandoor' &&
-                state.user?.restaurantAddress ==
-                    'Sector F-8 Markaz, Islamabad';
+                state.user?.name == 'Hassan Ali' &&
+                state.user?.pickupAddress == 'Sector F-8 Markaz, Islamabad';
           }),
         ),
       );

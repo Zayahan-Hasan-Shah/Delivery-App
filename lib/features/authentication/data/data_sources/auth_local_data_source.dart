@@ -14,9 +14,10 @@ abstract class AuthLocalDataSource {
 
   Future<UserModel> registerSender({
     required String fullName,
-    required String restaurantName,
     required String phone,
-    required String restaurantAddress,
+    required String pickupAddress,
+    double? pickupLatitude,
+    double? pickupLongitude,
     required String password,
   });
 
@@ -61,28 +62,36 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       id: 'sender_01',
       name: 'Ahmed Khan',
       phone: '03001234567',
-      email: 'sender@shefscloud.com',
+      email: 'sender@deliveryapp.com',
       role: UserRole.sender,
-      restaurantName: 'Spice Cloud Kitchen',
       restaurantAddress: 'Plot 14, Street 6, F-7 Markaz, Islamabad',
+      pickupAddress: 'Plot 14, Street 6, F-7 Markaz, Islamabad',
+      latitude: 33.7215,
+      longitude: 73.0560,
     );
     const demoRider = UserModel(
       id: 'rider_01',
       name: 'Bilal Raza',
       phone: '03117654321',
-      email: 'rider@shefscloud.com',
+      email: 'rider@deliveryapp.com',
       role: UserRole.rider,
       cnicNumber: '61101-1234567-1',
       drivingLicenseImagePath: 'demo://documents/driving_license_verified.jpg',
       bikePapersImagePath: 'demo://documents/bike_papers_verified.jpg',
       documentsVerified: true,
       isOnline: true,
+      latitude: 33.7180,
+      longitude: 73.0520,
     );
 
+    _accounts['sender@deliveryapp.com'] =
+        _StoredAccount(user: demoSender, password: 'password123');
     _accounts['sender@shefscloud.com'] =
         _StoredAccount(user: demoSender, password: 'password123');
     _accounts['03001234567'] =
         _StoredAccount(user: demoSender, password: 'password123');
+    _accounts['rider@deliveryapp.com'] =
+        _StoredAccount(user: demoRider, password: 'password123');
     _accounts['rider@shefscloud.com'] =
         _StoredAccount(user: demoRider, password: 'password123');
     _accounts['03117654321'] =
@@ -112,9 +121,10 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<UserModel> registerSender({
     required String fullName,
-    required String restaurantName,
     required String phone,
-    required String restaurantAddress,
+    required String pickupAddress,
+    double? pickupLatitude,
+    double? pickupLongitude,
     required String password,
   }) async {
     await Future.delayed(const Duration(milliseconds: 450));
@@ -133,10 +143,12 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       id: 'sender_${_uuid.v4().substring(0, 6)}',
       name: fullName.trim(),
       phone: phone.trim(),
-      email: '$cleanSlug@sender.shefscloud.com',
+      email: '$cleanSlug@sender.deliveryapp.com',
       role: UserRole.sender,
-      restaurantName: restaurantName.trim(),
-      restaurantAddress: restaurantAddress.trim(),
+      restaurantAddress: pickupAddress.trim(),
+      pickupAddress: pickupAddress.trim(),
+      latitude: pickupLatitude ?? AppConstants.defaultLatitude,
+      longitude: pickupLongitude ?? AppConstants.defaultLongitude,
     );
 
     _accounts[normalizedPhone] = _StoredAccount(user: user, password: password);

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -19,9 +19,9 @@ import 'package:delivery_app/features/orders/presentation/view/widgets/order_ite
 import 'package:delivery_app/l10n/app_localizations.dart';
 import 'package:delivery_app/shared/routing/route_names.dart';
 import 'package:delivery_app/shared/service/background_delivery_service.dart';
-import 'package:delivery_app/shared/service/document_picker_service.dart';
 import 'package:delivery_app/shared/service/location_service.dart';
 import 'package:delivery_app/shared/widgets/app_button.dart';
+import 'package:delivery_app/shared/widgets/app_tile_layer.dart';
 import 'package:delivery_app/shared/widgets/status_chip.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
@@ -41,25 +41,34 @@ class OrderDetailsScreen extends StatefulWidget {
 class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   late OrderEntity _order;
   late final MapController _mapController;
-  final _otpController = TextEditingController();
+  bool _isMapReady = false;
   StreamSubscription<UserLocation>? _riderLocationSub;
   LatLng? _riderCurrentLatLng;
   bool _isUpdating = false;
-  String? _proofPhotoPath;
 
   @override
   void initState() {
     super.initState();
     _order = widget.order;
-    _proofPhotoPath = widget.order.proofPhotoPath;
     _mapController = MapController();
     _initRiderLiveLocation();
   }
 
-  Future<void> _initRiderLiveLocation() async {
-    final user = context.read<AuthBloc>().state.user;
-    if (user?.role.isRider != true) return;
+  CameraFit? _computeInitialCameraFit() {
+    final pickup = LatLng(_order.pickup.latitude, _order.pickup.longitude);
+    final dropoff = LatLng(_order.dropoff.latitude, _order.dropoff.longitude);
+    final riderPt = _riderEffectiveLatLng;
+    final points = <LatLng>[pickup, dropoff, riderPt];
 
+    return CameraFit.bounds(
+      bounds: LatLngBounds.fromPoints(points),
+      padding: EdgeInsets.all(36.w),
+      minZoom: 12.5,
+      maxZoom: 16.0,
+    );
+  }
+
+  Future<void> _initRiderLiveLocation() async {
     final bgService = sl<BackgroundDeliveryService>();
     final locService = sl<LocationService>();
 
@@ -78,19 +87,19 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       }
     });
 
-    // Fetch a fresh GPS fix immediately so Rider always sees their real location
-    final fresh = await locService.getCurrentLocation();
-    if (fresh != null && mounted) {
-      setState(() {
-        _riderCurrentLatLng = LatLng(fresh.latitude, fresh.longitude);
-      });
-    }
+    try {
+      final fresh = await locService.getCurrentLocation();
+      if (fresh != null && mounted) {
+        setState(() {
+          _riderCurrentLatLng = LatLng(fresh.latitude, fresh.longitude);
+        });
+      }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _riderLocationSub?.cancel();
-    _otpController.dispose();
     super.dispose();
   }
 
@@ -115,23 +124,66 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     return 2 * r * atan2(sqrt(h), sqrt(1 - h));
   }
 
-  void _fitRoute() {
+  /// Always returns a valid coordinate for the rider:
+  /// Uses live GPS if within the delivery city region (< 50 km);
+  /// otherwise realistically anchors the rider along the active route based on order status.
+  LatLng get _riderEffectiveLatLng {
     final pickup = LatLng(_order.pickup.latitude, _order.pickup.longitude);
     final dropoff = LatLng(_order.dropoff.latitude, _order.dropoff.longitude);
-    final points = <LatLng>[pickup, dropoff];
-    if (_riderCurrentLatLng != null &&
-        _approxDistanceKm(_riderCurrentLatLng!, pickup) < 100.0) {
-      points.add(_riderCurrentLatLng!);
+
+    final current = _riderCurrentLatLng;
+    if (current != null && _approxDistanceKm(current, pickup) < 50.0) {
+      return current;
     }
-    final bounds = LatLngBounds.fromPoints(points);
-    _mapController.fitCamera(
-      CameraFit.bounds(bounds: bounds, padding: EdgeInsets.all(34.w)),
-    );
+
+    return switch (_order.status) {
+      OrderStatus.assigned => LatLng(
+          pickup.latitude - 0.0065,
+          pickup.longitude - 0.0055,
+        ),
+      OrderStatus.pickedUp => LatLng(
+          pickup.latitude + (dropoff.latitude - pickup.latitude) * 0.42,
+          pickup.longitude + (dropoff.longitude - pickup.longitude) * 0.42,
+        ),
+      OrderStatus.onTheWay => LatLng(
+          pickup.latitude + (dropoff.latitude - pickup.latitude) * 0.72,
+          pickup.longitude + (dropoff.longitude - pickup.longitude) * 0.72,
+        ),
+      OrderStatus.delivered => dropoff,
+      _ => LatLng(
+          pickup.latitude - 0.0065,
+          pickup.longitude - 0.0055,
+        ),
+    };
+  }
+
+  void _fitRoute() {
+    if (!_isMapReady) return;
+    try {
+      final pickup = LatLng(_order.pickup.latitude, _order.pickup.longitude);
+      final dropoff = LatLng(_order.dropoff.latitude, _order.dropoff.longitude);
+      final riderPt = _riderEffectiveLatLng;
+      final points = <LatLng>[pickup, dropoff, riderPt];
+      final bounds = LatLngBounds.fromPoints(points);
+      _mapController.fitCamera(
+        CameraFit.bounds(
+          bounds: bounds,
+          padding: EdgeInsets.all(36.w),
+          minZoom: 12.5,
+          maxZoom: 16.0,
+        ),
+      );
+    } catch (e) {
+      debugPrint('[OrderDetailsScreen] _fitRoute error: $e');
+    }
   }
 
   void _centerOnRider() {
-    if (_riderCurrentLatLng != null) {
-      _mapController.move(_riderCurrentLatLng!, 15.2);
+    if (!_isMapReady) return;
+    try {
+      _mapController.move(_riderEffectiveLatLng, 15.5);
+    } catch (e) {
+      debugPrint('[OrderDetailsScreen] _centerOnRider error: $e');
     }
   }
 
@@ -146,127 +198,282 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     );
   }
 
-  Future<void> _captureProofPhoto() async {
-    final l10n = AppLocalizations.of(context);
-    final picker = sl<DocumentPickerService>();
+  void _showEnlargedMapPreview(BuildContext context) {
+    final pickup = LatLng(_order.pickup.latitude, _order.pickup.longitude);
+    final dropoff = LatLng(_order.dropoff.latitude, _order.dropoff.longitude);
+    final riderPt = _riderEffectiveLatLng;
+    final isRider =
+        context.read<AuthBloc>().state.user?.role.isRider ?? false;
+    final points = <LatLng>[pickup, dropoff, riderPt];
+    final initialBounds = LatLngBounds.fromPoints(points);
 
-    final picked = await showModalBottomSheet<PickedDocumentImage>(
+    showDialog<void>(
       context: context,
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (sheetCtx) {
-        return SafeArea(
-          child: Padding(
-            padding: EdgeInsets.all(20.w),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  '${l10n.addProofPhoto} (${_order.orderNumber})',
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                SizedBox(height: 6.h),
-                Text(
-                  'Optional handover photo confirming parcel delivery.',
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                SizedBox(height: 14.h),
-                ListTile(
-                  leading: const Icon(
-                    Icons.camera_alt_rounded,
-                    color: AppColors.primary,
-                  ),
-                  title: Text(l10n.takePhotoCamera),
-                  onTap: () async {
-                    final img = await picker.pickFromCamera();
-                    if (sheetCtx.mounted) Navigator.of(sheetCtx).pop(img);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.photo_library_rounded,
-                    color: AppColors.primary,
-                  ),
-                  title: Text(l10n.chooseFromGallery),
-                  onTap: () async {
-                    final img = await picker.pickFromGallery();
-                    if (sheetCtx.mounted) Navigator.of(sheetCtx).pop(img);
-                  },
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(
-                    Icons.verified_outlined,
-                    color: AppColors.success,
-                  ),
-                  title: Text(l10n.useSampleDocument),
-                  onTap: () {
-                    Navigator.of(sheetCtx).pop(
-                      picker.createSampleDocument(
-                        'delivery_proof_${_order.orderNumber}',
+      builder: (dialogCtx) {
+        final l10n = AppLocalizations.of(dialogCtx);
+        final localController = MapController();
+        bool dialogMapReady = false;
+
+        final dialogWidth = MediaQuery.sizeOf(dialogCtx).width - 24.w;
+
+        return Dialog(
+          insetPadding: EdgeInsets.all(12.w),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.r),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20.r),
+            child: SizedBox(
+              width: dialogWidth,
+              height: 0.8.sh,
+              child: Stack(
+                children: [
+                  FlutterMap(
+                    mapController: localController,
+                    options: MapOptions(
+                      initialCenter: LatLng(
+                        (pickup.latitude + dropoff.latitude) / 2,
+                        (pickup.longitude + dropoff.longitude) / 2,
                       ),
-                    );
-                  },
-                ),
-              ],
+                      initialZoom: 13.5,
+                      minZoom: 11.5,
+                      maxZoom: 18.0,
+                      initialCameraFit: CameraFit.bounds(
+                        bounds: initialBounds,
+                        padding: EdgeInsets.all(40.w),
+                        minZoom: 12.5,
+                        maxZoom: 16.0,
+                      ),
+                      onMapReady: () {
+                        dialogMapReady = true;
+                      },
+                    ),
+                    children: [
+                      const AppTileLayer(),
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: [pickup, dropoff],
+                            color: _orderColor,
+                            strokeWidth: 5.0,
+                          ),
+                          Polyline(
+                            points: [
+                              riderPt,
+                              (_order.status == OrderStatus.pickedUp ||
+                                      _order.status == OrderStatus.onTheWay)
+                                  ? dropoff
+                                  : pickup,
+                            ],
+                            color: AppColors.charcoal.withAlpha(180),
+                            strokeWidth: 3.5,
+                          ),
+                        ],
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: pickup,
+                            width: 44.w,
+                            height: 44.w,
+                            child: _PinBadge(
+                              icon: Icons.storefront_rounded,
+                              color: _orderColor,
+                              isFilled: false,
+                            ),
+                          ),
+                          Marker(
+                            point: dropoff,
+                            width: 44.w,
+                            height: 44.w,
+                            child: _PinBadge(
+                              icon: Icons.flag_rounded,
+                              color: _orderColor,
+                              isFilled: true,
+                            ),
+                          ),
+                          Marker(
+                            point: riderPt,
+                            width: 90.w,
+                            height: 60.h,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 6.w,
+                                    vertical: 2.h,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.charcoal,
+                                    borderRadius:
+                                        BorderRadius.circular(8.r),
+                                  ),
+                                  child: Text(
+                                    isRider ? 'You' : (_order.riderName ?? 'Rider'),
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: 2.h),
+                                Container(
+                                  width: 32.w,
+                                  height: 32.w,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.charcoal,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2.5,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.two_wheeler_rounded,
+                                    color: Colors.white,
+                                    size: 18.sp,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Positioned(
+                    top: 12.h,
+                    left: 12.w,
+                    right: 12.w,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12.w,
+                            vertical: 6.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.charcoal.withAlpha(230),
+                            borderRadius: BorderRadius.circular(20.r),
+                          ),
+                          child: Text(
+                            '${_order.orderNumber} • Route Map',
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        IconButton.filled(
+                          onPressed: () => Navigator.of(dialogCtx).pop(),
+                          icon: const Icon(Icons.close_rounded),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppColors.charcoal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 16.h,
+                    left: 16.w,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16.w,
+                          vertical: 10.h,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24.r),
+                        ),
+                        elevation: 4,
+                      ),
+                      onPressed: () {
+                        Navigator.of(dialogCtx).pop();
+                        final toPickup = _order.status == OrderStatus.placed ||
+                            _order.status == OrderStatus.accepted ||
+                            _order.status == OrderStatus.assigned;
+                        _openInAppNavigation(toPickup: toPickup);
+                      },
+                      icon: const Icon(Icons.navigation_rounded, size: 18),
+                      label: Text(
+                        l10n.navigate,
+                        style: TextStyle(
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 16.h,
+                    right: 16.w,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FloatingActionButton.small(
+                          heroTag: 'enlarged_fit',
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppColors.charcoal,
+                          onPressed: () {
+                            if (!dialogMapReady) return;
+                            try {
+                              if (points.length >= 2) {
+                                localController.fitCamera(
+                                  CameraFit.bounds(
+                                    bounds: LatLngBounds.fromPoints(points),
+                                    padding: EdgeInsets.all(40.w),
+                                    minZoom: 12.5,
+                                    maxZoom: 16.0,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              debugPrint('[OrderDetailsScreen] fitCamera error: $e');
+                            }
+                          },
+                          child: const Icon(Icons.fit_screen_rounded),
+                        ),
+                        SizedBox(height: 8.h),
+                        FloatingActionButton.small(
+                          heroTag: 'enlarged_rider',
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          onPressed: () {
+                            if (!dialogMapReady) return;
+                            try {
+                              localController.move(riderPt, 15.5);
+                            } catch (e) {
+                              debugPrint('[OrderDetailsScreen] move error: $e');
+                            }
+                          },
+                          child: const Icon(Icons.my_location_rounded),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
       },
     );
-
-    if (!mounted) return;
-
-    if (picked != null) {
-      setState(() => _proofPhotoPath = picked.path);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${l10n.photoAdded}: ${picked.fileName}'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-    } else if (picker.lastErrorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(picker.lastErrorMessage!),
-          backgroundColor: AppColors.warning,
-        ),
-      );
-    }
   }
 
   Future<void> _advanceStatus(OrderStatus nextStatus) async {
-    if (nextStatus == OrderStatus.delivered) {
-      final entered = _otpController.text.trim();
-      if (entered.isNotEmpty && entered != _order.deliveryOtp) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Invalid Recipient OTP. Expected ${_order.deliveryOtp} (Demo).',
-            ),
-            backgroundColor: AppColors.error,
-          ),
-        );
-        return;
-      }
-    }
-
     setState(() => _isUpdating = true);
     try {
       final updated = await sl<UpdateOrderStatusUseCase>()(
         orderId: _order.id,
         newStatus: nextStatus,
-        proofPhotoPath: _proofPhotoPath,
       );
       if (mounted) {
         setState(() {
@@ -307,6 +514,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       (pickupLatLng.latitude + dropoffLatLng.latitude) / 2,
       (pickupLatLng.longitude + dropoffLatLng.longitude) / 2,
     );
+    final riderPt = _riderEffectiveLatLng;
 
     final progressStep = switch (_order.status) {
       OrderStatus.placed || OrderStatus.accepted || OrderStatus.assigned => 1,
@@ -328,14 +536,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         color: _orderColor,
         strokeWidth: 4.5,
       ),
-      if (isRider &&
-          _riderCurrentLatLng != null &&
-          _approxDistanceKm(_riderCurrentLatLng!, activeLegDestination) < 100.0)
-        Polyline(
-          points: [_riderCurrentLatLng!, activeLegDestination],
-          color: AppColors.charcoal.withAlpha(180),
-          strokeWidth: 3.2,
-        ),
+      Polyline(
+        points: [riderPt, activeLegDestination],
+        color: AppColors.charcoal.withAlpha(180),
+        strokeWidth: 3.2,
+      ),
     ];
 
     final markers = <Marker>[
@@ -359,53 +564,52 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           isFilled: true,
         ),
       ),
-      if (isRider && _riderCurrentLatLng != null)
-        Marker(
-          point: _riderCurrentLatLng!,
-          width: 84.w,
-          height: 58.h,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
-                decoration: BoxDecoration(
-                  color: AppColors.charcoal,
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: Text(
-                  l10n.youAreHere,
-                  style: TextStyle(
-                    fontSize: 9.sp,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
+      Marker(
+        point: riderPt,
+        width: 84.w,
+        height: 58.h,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+              decoration: BoxDecoration(
+                color: AppColors.charcoal,
+                borderRadius: BorderRadius.circular(8.r),
               ),
-              SizedBox(height: 2.h),
-              Container(
-                width: 30.w,
-                height: 30.w,
-                decoration: BoxDecoration(
-                  color: AppColors.charcoal,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(70),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.two_wheeler_rounded,
+              child: Text(
+                isRider ? l10n.youAreHere : (_order.riderName ?? 'Rider'),
+                style: TextStyle(
+                  fontSize: 9.sp,
+                  fontWeight: FontWeight.w700,
                   color: Colors.white,
-                  size: 16.sp,
                 ),
               ),
-            ],
-          ),
+            ),
+            SizedBox(height: 2.h),
+            Container(
+              width: 30.w,
+              height: 30.w,
+              decoration: BoxDecoration(
+                color: AppColors.charcoal,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(70),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.two_wheeler_rounded,
+                color: Colors.white,
+                size: 16.sp,
+              ),
+            ),
+          ],
         ),
+      ),
     ];
 
     return Scaffold(
@@ -481,23 +685,41 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       options: MapOptions(
                         initialCenter: centerLatLng,
                         initialZoom: 13.0,
+                        initialCameraFit: _computeInitialCameraFit(),
+                        onMapReady: () {
+                          _isMapReady = true;
+                        },
                       ),
                       children: [
-                        TileLayer(
-                          urlTemplate:
-                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.shefscloud.delivery',
-                        ),
+                        const AppTileLayer(),
                         PolylineLayer(polylines: polylines),
                         MarkerLayer(markers: markers),
                       ],
                     ),
-                    // Top-Right Map Controls: Fit Route + Rider My Location
+                    // Top-Right Map Controls: Enlarge Preview + Fit Route + Rider My Location
                     Positioned(
                       top: 10.h,
                       right: 10.w,
                       child: Column(
                         children: [
+                          Material(
+                            color: Colors.white.withAlpha(240),
+                            borderRadius: BorderRadius.circular(10.r),
+                            elevation: 2,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(10.r),
+                              onTap: () => _showEnlargedMapPreview(context),
+                              child: Padding(
+                                padding: EdgeInsets.all(7.w),
+                                child: Icon(
+                                  Icons.fullscreen_rounded,
+                                  size: 19.sp,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 6.h),
                           Material(
                             color: Colors.white.withAlpha(240),
                             borderRadius: BorderRadius.circular(10.r),
@@ -515,27 +737,112 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                               ),
                             ),
                           ),
-                          if (isRider && _riderCurrentLatLng != null) ...[
-                            SizedBox(height: 8.h),
-                            Material(
-                              color: Colors.white.withAlpha(240),
+                          SizedBox(height: 6.h),
+                          Material(
+                            color: Colors.white.withAlpha(240),
+                            borderRadius: BorderRadius.circular(10.r),
+                            elevation: 2,
+                            child: InkWell(
                               borderRadius: BorderRadius.circular(10.r),
-                              elevation: 2,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(10.r),
-                                onTap: _centerOnRider,
-                                child: Padding(
-                                  padding: EdgeInsets.all(7.w),
-                                  child: Icon(
-                                    Icons.my_location_rounded,
-                                    size: 18.sp,
-                                    color: AppColors.primary,
-                                  ),
+                              onTap: _centerOnRider,
+                              child: Padding(
+                                padding: EdgeInsets.all(7.w),
+                                child: Icon(
+                                  Icons.my_location_rounded,
+                                  size: 18.sp,
+                                  color: AppColors.primary,
                                 ),
                               ),
                             ),
-                          ],
+                          ),
                         ],
+                      ),
+                    ),
+
+                    // Bottom-Left Active Stop Pill
+                    Positioned(
+                      bottom: 10.h,
+                      left: 10.w,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10.w,
+                          vertical: 5.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.charcoal.withAlpha(225),
+                          borderRadius: BorderRadius.circular(16.r),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 7.w,
+                              height: 7.w,
+                              decoration: BoxDecoration(
+                                color: _orderColor,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            SizedBox(width: 6.w),
+                            Text(
+                              (_order.status == OrderStatus.pickedUp ||
+                                      _order.status == OrderStatus.onTheWay)
+                                  ? l10n.dropoffLabel
+                                  : l10n.pickupLabel,
+                              style: TextStyle(
+                                fontSize: 11.sp,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Bottom-Right In-Map Navigate Button
+                    Positioned(
+                      bottom: 10.h,
+                      right: 10.w,
+                      child: Material(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(22.r),
+                        elevation: 4,
+                        shadowColor: Colors.black.withAlpha(90),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(22.r),
+                          onTap: () {
+                            final toPickup = _order.status == OrderStatus.placed ||
+                                _order.status == OrderStatus.accepted ||
+                                _order.status == OrderStatus.assigned;
+                            _openInAppNavigation(toPickup: toPickup);
+                          },
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 14.w,
+                              vertical: 7.h,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.navigation_rounded,
+                                  size: 15.sp,
+                                  color: Colors.white,
+                                ),
+                                SizedBox(width: 5.w),
+                                Text(
+                                  l10n.navigate,
+                                  style: TextStyle(
+                                    fontSize: 12.sp,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -603,31 +910,53 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         ),
                       ],
                     ),
-                    SizedBox(height: 6.h),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          isRider ? l10n.riderShare : l10n.deliveryFee,
-                          style: TextStyle(
-                            fontSize: 13.sp,
-                            color: AppColors.textSecondary,
+                    if (!isRider) ...[
+                      SizedBox(height: 8.h),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            l10n.deliveryFee,
+                            style: TextStyle(
+                              fontSize: 13.sp,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
-                        ),
-                        Text(
-                          Formatters.formatCurrency(
-                            isRider
-                                ? _order.riderSharePkr
-                                : _order.deliveryFeePkr,
+                          Text(
+                            Formatters.formatCurrency(_order.deliveryFeePkr),
+                            style: TextStyle(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
-                          style: TextStyle(
-                            fontSize: 15.sp,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
+                        ],
+                      ),
+                    ],
+                    if (isRider) ...[
+                      SizedBox(height: 6.h),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            l10n.riderShare,
+                            style: TextStyle(
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                          Text(
+                            Formatters.formatCurrency(_order.riderSharePkr),
+                            style: TextStyle(
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -674,140 +1003,44 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             ),
             SizedBox(height: 14.h),
 
-            // SENDER VIEW: Delivery OTP & Track Button
-            if (!isRider) ...[
-              Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16.w),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              l10n.yourDeliveryCode,
-                              style: TextStyle(
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            SizedBox(height: 2.h),
-                            Text(
-                              l10n.tellOtpToRider,
-                              style: TextStyle(
-                                fontSize: 12.sp,
-                                color: AppColors.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Text(
-                        _order.deliveryOtp,
-                        style: TextStyle(
-                          fontSize: 28.sp,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 5,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+            // SENDER VIEW: Track Button
+            if (!isRider && _order.status.isActive) ...[
+              AppButton(
+                text: l10n.liveTracking,
+                icon: Icons.my_location_rounded,
+                onPressed: () {
+                  context.pushNamed(
+                    RouteNames.trackOrder,
+                    queryParameters: {'orderId': _order.id},
+                  );
+                },
               ),
               SizedBox(height: 14.h),
-              if (_order.status.isActive)
-                AppButton(
-                  text: l10n.liveTracking,
-                  icon: Icons.my_location_rounded,
-                  onPressed: () {
-                    context.pushNamed(
-                      RouteNames.trackOrder,
-                      queryParameters: {'orderId': _order.id},
-                    );
-                  },
-                ),
             ],
 
-            // RIDER VIEW: Action Controls, OTP Handover & Proof Photo
+            // RIDER VIEW: In-App Navigation & Order Progression Actions
             if (isRider && _order.status.isActive) ...[
-              if (_order.status == OrderStatus.onTheWay) ...[
-                Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.w),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${l10n.recipientOtp} (Demo: ${_order.deliveryOtp})',
-                          style: TextStyle(
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        SizedBox(height: 8.h),
-                        TextField(
-                          controller: _otpController,
-                          keyboardType: TextInputType.number,
-                          maxLength: 4,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 22.sp,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 8,
-                          ),
-                          decoration: const InputDecoration(
-                            counterText: '',
-                            hintText: '• • • •',
-                          ),
-                        ),
-                      ],
-                    ),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: Size(double.infinity, 48.h),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
                   ),
                 ),
-                SizedBox(height: 12.h),
-              ],
-
-              // Quick Navigate & Optional Proof of Delivery Photo Row
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        final toPickup =
-                            _order.status == OrderStatus.assigned ||
-                                _order.status == OrderStatus.accepted ||
-                                _order.status == OrderStatus.placed;
-                        _openInAppNavigation(toPickup: toPickup);
-                      },
-                      icon: Icon(Icons.navigation_rounded, size: 18.sp),
-                      label: Text(l10n.navigate),
-                    ),
-                  ),
-                  SizedBox(width: 10.w),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _captureProofPhoto,
-                      icon: Icon(
-                        _proofPhotoPath != null
-                            ? Icons.check_circle_rounded
-                            : Icons.camera_alt_outlined,
-                        size: 18.sp,
-                        color: _proofPhotoPath != null
-                            ? AppColors.success
-                            : AppColors.charcoal,
-                      ),
-                      label: Text(
-                        _proofPhotoPath != null
-                            ? l10n.photoAdded
-                            : l10n.addProofPhoto,
-                      ),
-                    ),
-                  ),
-                ],
+                onPressed: () {
+                  final toPickup =
+                      _order.status == OrderStatus.assigned ||
+                          _order.status == OrderStatus.accepted ||
+                          _order.status == OrderStatus.placed;
+                  _openInAppNavigation(toPickup: toPickup);
+                },
+                icon: Icon(Icons.navigation_rounded, size: 18.sp),
+                label: Text(
+                  _order.status == OrderStatus.onTheWay
+                      ? 'Navigate to Drop-off'
+                      : 'Navigate to Pickup',
+                  style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700),
+                ),
               ),
               SizedBox(height: 14.h),
 

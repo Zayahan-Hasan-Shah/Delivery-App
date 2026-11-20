@@ -1,5 +1,5 @@
 class AppConstants {
-  static const String appTitle = 'ShefsCloud Delivery';
+  static const String appTitle = 'Delivery App';
 
   // Secure storage & SharedPreferences keys
   static const String keyAuthToken = 'auth_token';

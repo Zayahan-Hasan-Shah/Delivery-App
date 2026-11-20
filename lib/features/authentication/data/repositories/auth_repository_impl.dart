@@ -21,16 +21,18 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<UserEntity> registerSender({
     required String fullName,
-    required String restaurantName,
     required String phone,
-    required String restaurantAddress,
+    required String pickupAddress,
+    double? pickupLatitude,
+    double? pickupLongitude,
     required String password,
   }) {
     return localDataSource.registerSender(
       fullName: fullName,
-      restaurantName: restaurantName,
       phone: phone,
-      restaurantAddress: restaurantAddress,
+      pickupAddress: pickupAddress,
+      pickupLatitude: pickupLatitude,
+      pickupLongitude: pickupLongitude,
       password: password,
     );
   }

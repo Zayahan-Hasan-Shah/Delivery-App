@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
@@ -244,7 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: OutlinedButton.icon(
                                   onPressed: isLoading
                                       ? null
-                                      : () => _quickFill('sender@shefscloud.com'),
+                                      : () => _quickFill('sender@deliveryapp.com'),
                                   icon: Icon(
                                     Icons.storefront_rounded,
                                     size: 18.sp,
@@ -257,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: OutlinedButton.icon(
                                   onPressed: isLoading
                                       ? null
-                                      : () => _quickFill('rider@shefscloud.com'),
+                                      : () => _quickFill('rider@deliveryapp.com'),
                                   icon: Icon(
                                     Icons.two_wheeler_rounded,
                                     size: 18.sp,

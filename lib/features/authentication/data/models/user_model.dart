@@ -11,6 +11,9 @@ class UserModel extends UserEntity {
     super.profileImageUrl,
     super.restaurantName,
     super.restaurantAddress,
+    super.pickupAddress,
+    super.latitude,
+    super.longitude,
     super.cnicNumber,
     super.drivingLicenseImagePath,
     super.bikePapersImagePath,
@@ -28,6 +31,9 @@ class UserModel extends UserEntity {
       profileImageUrl: entity.profileImageUrl,
       restaurantName: entity.restaurantName,
       restaurantAddress: entity.restaurantAddress,
+      pickupAddress: entity.pickupAddress ?? entity.restaurantAddress,
+      latitude: entity.latitude,
+      longitude: entity.longitude,
       cnicNumber: entity.cnicNumber,
       drivingLicenseImagePath: entity.drivingLicenseImagePath,
       bikePapersImagePath: entity.bikePapersImagePath,
@@ -37,6 +43,8 @@ class UserModel extends UserEntity {
   }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final addr = json['pickup_address']?.toString() ??
+        json['restaurant_address']?.toString();
     return UserModel(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
@@ -45,7 +53,10 @@ class UserModel extends UserEntity {
       role: UserRole.fromString(json['role']?.toString() ?? 'sender'),
       profileImageUrl: json['profile_image_url']?.toString(),
       restaurantName: json['restaurant_name']?.toString(),
-      restaurantAddress: json['restaurant_address']?.toString(),
+      restaurantAddress: addr,
+      pickupAddress: addr,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
       cnicNumber: json['cnic_number']?.toString(),
       drivingLicenseImagePath: json['driving_license_image_path']?.toString(),
       bikePapersImagePath: json['bike_papers_image_path']?.toString(),
@@ -64,6 +75,9 @@ class UserModel extends UserEntity {
       'profile_image_url': profileImageUrl,
       'restaurant_name': restaurantName,
       'restaurant_address': restaurantAddress,
+      'pickup_address': pickupAddress ?? restaurantAddress,
+      'latitude': latitude,
+      'longitude': longitude,
       'cnic_number': cnicNumber,
       'driving_license_image_path': drivingLicenseImagePath,
       'bike_papers_image_path': bikePapersImagePath,

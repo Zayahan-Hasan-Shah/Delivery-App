@@ -26,25 +26,28 @@ class LoginSubmittedEvent extends AuthEvent {
 
 class RegisterSenderSubmittedEvent extends AuthEvent {
   final String fullName;
-  final String restaurantName;
   final String phone;
-  final String restaurantAddress;
+  final String pickupAddress;
+  final double? pickupLatitude;
+  final double? pickupLongitude;
   final String password;
 
   const RegisterSenderSubmittedEvent({
     required this.fullName,
-    required this.restaurantName,
     required this.phone,
-    required this.restaurantAddress,
+    required this.pickupAddress,
+    this.pickupLatitude,
+    this.pickupLongitude,
     required this.password,
   });
 
   @override
   List<Object?> get props => [
         fullName,
-        restaurantName,
         phone,
-        restaurantAddress,
+        pickupAddress,
+        pickupLatitude,
+        pickupLongitude,
         password,
       ];
 }
